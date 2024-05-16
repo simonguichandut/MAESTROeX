@@ -1,10 +1,9 @@
 
 #include <Maestro.H>
-#include <Maestro_F.H>
 
 using namespace amrex;
 
-void Maestro::PrintBase(const RealVector& base, const bool is_cell_centered) {
+void Maestro::PrintBase(const RealVector& base, const bool is_cell_centered) const {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::PrintBase()", PrintBase);
 
@@ -24,7 +23,7 @@ void Maestro::PrintBase(const RealVector& base, const bool is_cell_centered) {
 }
 
 void Maestro::PrintBase(const BaseState<Real>& base_s,
-                        const bool is_cell_centered) {
+                        const bool is_cell_centered) const {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::PrintBase()", PrintBase);
 
@@ -204,7 +203,7 @@ void Maestro::WriteMF(const Vector<MultiFab>& mf, const std::string& name) {
     }
 
     for (int i = 0; i <= finest_level; ++i) {
-        plot_mf_data[i]->copy((mf[i]), 0, 0, nComp);
+        plot_mf_data[i]->ParallelCopy((mf[i]), 0, 0, nComp);
     }
 
     // MultiFab to hold plotfile data

@@ -1,8 +1,9 @@
 
 #include <AMReX_VisMF.H>
 #include <Maestro.H>
-#include <Maestro_F.H>
+
 using namespace amrex;
+using namespace problem_rp;
 
 void Maestro::Init() {
     // timer for profiling
@@ -123,7 +124,7 @@ void Maestro::MakeNewLevelFromScratch(int lev, Real time, const BoxArray& ba,
             const auto x = prob_lo[0] + (Real(i) + 0.5) * dx[0] - center_p[0];
             const auto y = prob_lo[1] + (Real(j) + 0.5) * dx[1] - center_p[1];
 
-            // apply the guassian enthalpy pulse at constant density
+            // apply the Gaussian enthalpy pulse at constant density
             const auto dist2 = x * x + y * y;
 
             const auto h_zone =
@@ -142,33 +143,9 @@ void Maestro::MakeNewLevelFromScratch(int lev, Real time, const BoxArray& ba,
 
             eos_state.rho = s0_arr(lev, r, Rho);
 
-            auto converged = false;
+            eos_state.h = h_zone;
 
-            for (auto iter = 0; iter < max_iter; ++iter) {
-                eos_state.T = temp_zone;
-
-                eos(eos_input_rt, eos_state);
-
-                const auto dhdt = eos_state.cv + eos_state.dpdT / eos_state.rho;
-
-                const auto del_temp = -(eos_state.h - h_zone) / dhdt;
-
-                temp_zone += del_temp;
-
-                if (amrex::Math::abs(del_temp) < tol * temp_zone) {
-                    converged = true;
-                    break;
-                }
-            }
-
-            if (!converged) {
-                Abort("Iters did not converge in InitLevelData.");
-            }
-
-            // call eos one last time
-            eos_state.T = temp_zone;
-
-            eos(eos_input_rt, eos_state);
+            eos(eos_input_rh, eos_state);
 
             scal(i, j, k, Rho) = eos_state.rho;
             scal(i, j, k, RhoH) = eos_state.rho * eos_state.h;

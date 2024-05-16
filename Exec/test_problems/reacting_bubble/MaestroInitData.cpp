@@ -3,8 +3,9 @@
 #include <actual_network.H>
 #include <network_properties.H>
 using namespace amrex;
+using namespace problem_rp;
 
-// prototype for pertubation function to be called on the
+// prototype for perturbation function to be called on the
 // device (if USE_CUDA=TRUE)
 AMREX_GPU_DEVICE
 void Perturb(const Real p0_init, const Real* s0, Real* perturbations,
@@ -57,8 +58,11 @@ void Maestro::InitLevelData(const int lev, const Real time, const MFIter& mfi,
 
             Real x = prob_lo[0] + (Real(i) + 0.5) * dx[0];
             Real y = prob_lo[1] + (Real(j) + 0.5) * dx[1];
+#if AMREX_SPACEDIM == 3
             Real z = prob_lo[2] + (Real(k) + 0.5) * dx[2];
-
+#else
+            Real z = 0.0;
+#endif
             Real perturbations[Nscal];
             Real s0[Nscal];
 
@@ -170,7 +174,7 @@ void Maestro::InitLevelDataSphr(const int lev, const Real time, MultiFab& scal,
             }
 
             // initialize the aux variables
-#ifdef NSE_THERMO
+#ifdef AUX_THERMO
             for (auto comp = 0; comp < NumAux; ++comp) {
                 scal_arr(i, j, k, FirstAux + comp) = 0.0;
             }
@@ -183,8 +187,8 @@ void Maestro::InitLevelDataSphr(const int lev, const Real time, MultiFab& scal,
                 scal_arr(i, j, k, FirstAux + iabar) +=
                     scal_arr(i, j, k, FirstSpec + comp) * aion_inv[comp];
                 scal_arr(i, j, k, FirstAux + ibea) +=
-                    scal_arr(i, j, k, FirstSpec + comp) * aprox19::bion(comp) *
-                    aion_inv[comp];
+                    scal_arr(i, j, k, FirstSpec + comp) *
+                    aprox19::bion(comp + 1) * aion_inv[comp];
             }
 
             scal_arr(i, j, k, FirstAux + iabar) =
@@ -239,7 +243,7 @@ void Maestro::InitLevelDataSphr(const int lev, const Real time, MultiFab& scal,
                 scal_arr(i, j, k, Rho) = perturbations[Rho];
                 scal_arr(i, j, k, RhoH) = perturbations[RhoH];
                 scal_arr(i, j, k, Temp) = perturbations[Temp];
-#ifdef NSE_THERMO
+#ifdef AUX_THERMO
                 // initialize the aux quantities
                 for (auto comp = 0; comp < NumAux; ++comp) {
                     scal_arr(i, j, k, FirstAux + comp) = 0.0;
@@ -249,7 +253,7 @@ void Maestro::InitLevelDataSphr(const int lev, const Real time, MultiFab& scal,
                 for (auto comp = 0; comp < NumSpec; ++comp) {
                     scal_arr(i, j, k, FirstSpec + comp) =
                         perturbations[FirstSpec + comp];
-#ifdef NSE_THERMO
+#ifdef AUX_THERMO
                     // set the aux quantities
                     scal_arr(i, j, k, FirstAux + iye) +=
                         scal_arr(i, j, k, FirstSpec + comp) * zion[comp] *
@@ -258,7 +262,7 @@ void Maestro::InitLevelDataSphr(const int lev, const Real time, MultiFab& scal,
                         scal_arr(i, j, k, FirstSpec + comp) * aion_inv[comp];
                     scal_arr(i, j, k, FirstAux + ibea) +=
                         scal_arr(i, j, k, FirstSpec + comp) *
-                        aprox19::bion(comp) * aion_inv[comp];
+                        aprox19::bion(comp + 1) * aion_inv[comp];
                 }
 
                 scal_arr(i, j, k, FirstAux + iabar) =

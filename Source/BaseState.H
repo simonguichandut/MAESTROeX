@@ -1,5 +1,5 @@
-#ifndef BaseState_H_
-#define BaseState_H_
+#ifndef BaseState_H
+#define BaseState_H
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -28,6 +28,22 @@ struct BaseStateArray {
     AMREX_GPU_HOST_DEVICE
     constexpr BaseStateArray(BaseStateArray<T> const& rhs) noexcept
         : dptr(rhs.dptr), nlev(rhs.nlev), len(rhs.len), nvar(rhs.nvar) {}
+
+    /// destructor
+    AMREX_GPU_HOST_DEVICE
+    ~BaseStateArray() = default;
+
+    // no copy assignment
+    AMREX_GPU_HOST_DEVICE
+    BaseStateArray& operator= (const BaseStateArray<T>& other) = delete;
+
+    // no move constructor
+    AMREX_GPU_HOST_DEVICE
+    BaseStateArray(BaseStateArray<T>&& other) = delete;
+
+    // no move assignment
+    AMREX_GPU_HOST_DEVICE
+    BaseStateArray& operator= (BaseStateArray<T>&& other) = delete;
 
     /// initialize from pointer
     AMREX_GPU_HOST_DEVICE
@@ -65,8 +81,8 @@ struct BaseStateArray {
     }
 
     /// if access using only one index, then this ignores the underlying data structure. Useful for e.g. applying the same operation to all data.
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE T& operator()(const int i) const
-        noexcept {
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE T& operator()(
+        const int i) const noexcept {
         return dptr[i];
     }
 
@@ -83,8 +99,8 @@ struct BaseStateArray {
         return dptr[i];
     }
 
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE T* ptr(int lev, int i = 0,
-                                                    int n = 0) const noexcept {
+    AMREX_GPU_HOST_DEVICE [[nodiscard]] AMREX_FORCE_INLINE T* ptr(int lev, int i = 0,
+                                                                  int n = 0) const noexcept {
         return dptr + (lev * len + i) * nvar + n;
     }
 
@@ -93,17 +109,17 @@ struct BaseStateArray {
     }
 
     /// number of levels in base
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int nLevels() const noexcept {
+    AMREX_GPU_HOST_DEVICE [[nodiscard]] AMREX_FORCE_INLINE int nLevels() const noexcept {
         return nlev;
     }
 
     /// number of cells in base
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int length() const noexcept {
+    AMREX_GPU_HOST_DEVICE [[nodiscard]] AMREX_FORCE_INLINE int length() const noexcept {
         return len;
     }
 
-    /// number of componenets
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int nComp() const noexcept {
+    /// number of components
+    AMREX_GPU_HOST_DEVICE [[nodiscard]] AMREX_FORCE_INLINE int nComp() const noexcept {
         return nvar;
     }
 };
@@ -123,7 +139,7 @@ class BaseState {
       public member functions
     */
 
-    BaseState() : nlev(0), len(0), nvar(0) {}
+    BaseState() noexcept : nlev(0), len(0), nvar(0) {}
 
     explicit BaseState(const int num_levs, const int length = 1,
                        const int ncomp = 1, const T val = T());
@@ -138,9 +154,22 @@ class BaseState {
     /// copy constructor. This makes a deep copy of the src.
     BaseState(const BaseState<T>& src);
 
+    // destructor
+    ~BaseState() = default;
+
+    // no copy assignment
+    BaseState& operator= (const BaseState<T>& src) = delete;
+
+    // default move constructor -- we might want to explicitly
+    // implement this, since the compiler might default to copy
+    BaseState(BaseState<T>&& src) = default;
+
+    // no move assignment
+    BaseState& operator= (BaseState<T>&& src) = delete;
+
     /// return a BaseStateArray object to allow for accessing
     /// the underlying data
-    AMREX_FORCE_INLINE
+     [[nodiscard]] AMREX_FORCE_INLINE
     BaseStateArray<T const> array() const noexcept {
         return makeBaseStateArray<T const>(base_data.dataPtr(), nlev, len,
                                            nvar);
@@ -153,7 +182,7 @@ class BaseState {
         return makeBaseStateArray<T>(base_data.dataPtr(), nlev, len, nvar);
     }
 
-    AMREX_FORCE_INLINE
+     [[nodiscard]] AMREX_FORCE_INLINE
     BaseStateArray<const T> const_array() const noexcept {
         return makeBaseStateArray<const T>(base_data.dataPtr(), nlev, len,
                                            nvar);
@@ -181,17 +210,17 @@ class BaseState {
     void setVal(const int comp, const T& val);
 
     /// number of levels in base
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int nLevels() const noexcept {
+    AMREX_GPU_HOST_DEVICE [[nodiscard]] AMREX_FORCE_INLINE int nLevels() const noexcept {
         return nlev;
     };
 
     /// number of cells in base
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int length() const noexcept {
+    AMREX_GPU_HOST_DEVICE [[nodiscard]] AMREX_FORCE_INLINE int length() const noexcept {
         return len;
     };
 
     /// number of components
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int nComp() const noexcept {
+    AMREX_GPU_HOST_DEVICE [[nodiscard]] AMREX_FORCE_INLINE int nComp() const noexcept {
         return nvar;
     };
 
@@ -205,11 +234,11 @@ class BaseState {
     void toVector(amrex::Gpu::ManagedVector<T>& vec) const;
 
     /// swap the data with src
-    void swap(BaseState<T>& src);
+    void swap(BaseState<T>& src) noexcept;
 
     T* dataPtr() noexcept { return base_data.dataPtr(); };
 
-    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE T* dataPtr() const noexcept {
+    AMREX_GPU_HOST_DEVICE [[nodiscard]] AMREX_FORCE_INLINE T* dataPtr() const noexcept {
         return this->dptr;
     }
 
@@ -281,6 +310,7 @@ BaseState<T>::BaseState(const int num_levs, const int length, const int ncomp,
     : nlev(num_levs), len(length), nvar(ncomp) {
     base_data.resize(nlev * len * nvar);
     base_data.shrink_to_fit();
+    amrex::Gpu::streamSynchronize();
     std::fill(base_data.begin(), base_data.end(), val);
 }
 
@@ -295,6 +325,7 @@ BaseState<T>::BaseState(const amrex::Gpu::ManagedVector<T>& src,
     : nlev(num_levs), len(length), nvar(ncomp) {
     base_data.resize(nlev * len * nvar);
     base_data.shrink_to_fit();
+    amrex::Gpu::streamSynchronize();
     // need to switch from Fortran array-ordering to C++ ordering
     for (auto l = 0; l < nlev; ++l) {
         for (auto r = 0; r < len; ++r) {
@@ -312,6 +343,7 @@ BaseState<T>::BaseState(const amrex::Vector<T>& src, const int num_levs,
     : nlev(num_levs), len(length), nvar(ncomp) {
     base_data.resize(nlev * len * nvar);
     base_data.shrink_to_fit();
+    amrex::Gpu::streamSynchronize();
     // need to switch from Fortran array-ordering to C++ ordering
     for (auto l = 0; l < nlev; ++l) {
         for (auto r = 0; r < len; ++r) {
@@ -328,6 +360,7 @@ BaseState<T>::BaseState(const BaseState<T>& src)
     : nlev(src.nLevels()), len(src.length()), nvar(src.nComp()) {
     base_data.resize(nlev * len * nvar);
     base_data.shrink_to_fit();
+    amrex::Gpu::streamSynchronize();
     BaseStateArray<T> base_arr = this->array();
     const BaseStateArray<const T> src_arr = src.array();
     for (auto l = 0; l < nlev; ++l) {
@@ -348,16 +381,18 @@ void BaseState<T>::define(const int num_levs, const int length, const int ncomp,
 
     base_data.resize(nlev * length * nvar);
     base_data.shrink_to_fit();
+    amrex::Gpu::streamSynchronize();
     std::fill(base_data.begin(), base_data.end(), val);
 }
 
 template <class T>
 void BaseState<T>::resize(const int num_levs, const int length, const int ncomp,
                           const T val) {
-    if (base_data.size() > 0) {
+    if (! base_data.empty()) {
         base_data.resize(0);
+        amrex::Gpu::streamSynchronize();
     }
-    this->define(num_levs, length, ncomp);
+    this->define(num_levs, length, ncomp, val);
 }
 
 template <class T>
@@ -456,7 +491,7 @@ void BaseState<T>::toVector(amrex::Gpu::ManagedVector<T>& vec) const {
 }
 
 template <class T>
-void BaseState<T>::swap(BaseState<T>& src) {
+void BaseState<T>::swap(BaseState<T>& src) noexcept {
     AMREX_ASSERT(nlev == src.nlev);
     AMREX_ASSERT(nvar == src.nvar);
     AMREX_ASSERT(len == src.len);

@@ -1,5 +1,4 @@
 #include <Maestro.H>
-#include <Maestro_F.H>
 #if NAUX_NET > 0
 #include <actual_network.H>
 #endif
@@ -166,20 +165,20 @@ void Maestro::InitBaseState(BaseState<Real>& rho0, BaseState<Real>& rhoh0,
 #endif
 
             // initialize the aux variables
-#ifdef NSE_THERMO
+#ifdef AUX_THERMO
             for (auto comp = 0; comp < NumSpec; ++comp) {
                 // set the aux quantities
                 aux_ambient[iye] +=
                     xn_ambient[comp] * zion[comp] * aion_inv[comp];
                 aux_ambient[iabar] += xn_ambient[comp] * aion_inv[comp];
                 aux_ambient[ibea] +=
-                    xn_ambient[comp] * aprox19::bion(comp) * aion_inv[comp];
+                    xn_ambient[comp] * network::bion(comp + 1) * aion_inv[comp];
             }
 
             aux_ambient[iabar] = 1.0_rt / aux_ambient[iabar];
 #endif
 
-            eos_t eos_state;
+            eos_rh_t eos_state;
 
             // use the EOS to make the state consistent
             eos_state.T = t_ambient;
@@ -194,8 +193,13 @@ void Maestro::InitBaseState(BaseState<Real>& rho0, BaseState<Real>& rhoh0,
             }
 #endif
 
-            // (rho,T) --> p,h
-            eos(eos_input_rt, eos_state);
+            if (basestate_use_pres_model) {
+                // (rho,p) --> T,h
+                eos(eos_input_rp, eos_state);
+            } else {
+                // (rho,T) --> p,h
+                eos(eos_input_rt, eos_state);
+            }
 
             s0_init_arr(n, r, Rho) = d_ambient;
             s0_init_arr(n, r, RhoH) = d_ambient * eos_state.h;
@@ -210,7 +214,7 @@ void Maestro::InitBaseState(BaseState<Real>& rho0, BaseState<Real>& rhoh0,
             }
 #endif
             p0_init_arr(n, r) = eos_state.p;  // p_ambient !
-            s0_init_arr(n, r, Temp) = t_ambient;
+            s0_init_arr(n, r, Temp) = eos_state.T;
 
             // keep track of the height where we drop below the cutoff density
             if (s0_init_arr(n, r, Rho) <= base_cutoff_density &&

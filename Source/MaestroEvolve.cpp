@@ -1,6 +1,7 @@
 
 #include <Maestro.H>
-#include <Maestro_F.H>
+#include <cstdio>
+#include <filesystem>
 
 using namespace amrex;
 
@@ -78,9 +79,6 @@ void Maestro::Evolve() {
         Real start_total = ParallelDescriptor::second();
 
         // advance the solution by dt
-#ifdef SDC
-        AdvanceTimeStepSDC(false);
-#else
         if (use_exact_base_state || average_base_state) {
             // new temporal algorithm
             AdvanceTimeStepAverage(false);
@@ -88,7 +86,6 @@ void Maestro::Evolve() {
             // original temporal algorithm
             AdvanceTimeStep(false);
         }
-#endif
 
         t_old = t_new;
 
@@ -115,31 +112,64 @@ void Maestro::Evolve() {
 
         Print() << "Time to advance time step: " << end_total << '\n';
 
+        bool do_plotfile = false;
+
         if ((plot_int > 0 && istep % plot_int == 0) ||
             (plot_deltat > 0 && std::fmod(t_new, plot_deltat) < dt) ||
             ((plot_int > 0 || plot_deltat > 0) &&
              (istep == max_step || t_old >= stop_time))) {
+            do_plotfile = true;
+        }
+
+        if (std::filesystem::exists("plot_and_continue")) {
+            remove("plot_and_continue");
+            do_plotfile = true;
+        }
+
+        if (do_plotfile) {
             // write a plotfile
             Print() << "\nWriting plotfile " << istep << std::endl;
             WritePlotFile(istep, t_new, dt, rho0_new, rhoh0_new, p0_new,
                           gamma1bar_new, unew, snew, S_cc_new);
         }
 
+        bool do_small_plotfile = false;
+
         if ((small_plot_int > 0 && istep % small_plot_int == 0) ||
             (small_plot_deltat > 0 &&
              std::fmod(t_new, small_plot_deltat) < dt) ||
             ((small_plot_int > 0 || small_plot_deltat > 0) &&
              (istep == max_step || t_old >= stop_time))) {
+            do_small_plotfile = true;
+        }
+
+        if (std::filesystem::exists("small_plot_and_continue")) {
+            remove("small_plot_and_continue");
+            do_small_plotfile = true;
+        }
+
+        if (do_small_plotfile) {
             // write a small plotfile
             Print() << "\nWriting small plotfile " << istep << std::endl;
             WriteSmallPlotFile(istep, t_new, dt, rho0_new, rhoh0_new, p0_new,
                                gamma1bar_new, unew, snew, S_cc_new);
         }
 
+        bool do_checkpoint = false;
+
         if ((chk_int > 0 && istep % chk_int == 0) ||
             (chk_deltat > 0 && std::fmod(t_new, chk_deltat) < dt) ||
             ((chk_int > 0 || chk_deltat > 0) &&
              (istep == max_step || t_old >= stop_time))) {
+            do_checkpoint = true;
+        }
+
+        if (std::filesystem::exists("dump_and_continue")) {
+            remove("dump_and_continue");
+            do_checkpoint = true;
+        }
+
+        if (do_checkpoint) {
             // write a checkpoint file
             Print() << "\nWriting checkpoint " << istep << std::endl;
             WriteCheckPoint(istep);

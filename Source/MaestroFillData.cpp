@@ -1,6 +1,5 @@
 
 #include <Maestro.H>
-#include <Maestro_F.H>
 #include <PhysBCFunctMaestro.H>
 
 using namespace amrex;
@@ -119,7 +118,7 @@ void Maestro::FillCoarsePatch(int lev, Real time, MultiFab& mf,
 // subcycle I'm not sure if we need this capability?
 void Maestro::GetData(int lev, Real time, Vector<MultiFab*>& mf,
                       Vector<Real>& mftime, Vector<MultiFab>& mf_old,
-                      Vector<MultiFab>& mf_new) {
+                      Vector<MultiFab>& mf_new) const {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::GetData()", GetData);
 
@@ -221,37 +220,37 @@ void Maestro::FillUmacGhost(
             ParallelFor(xbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 // lo x-faces
                 if (i == domlo[0] - 1) {
-                    switch (physbc_p[0]) {
-                        case Inflow:
+                    switch (physbc_p[0]) {  // NOLINT(bugprone-switch-missing-default-case)
+                        case amrex::PhysBCType::inflow:
                             umac(i, j, k) = umac(i + 1, j, k);
                             vmac(i, j, k) = 0.0;
 #if (AMREX_SPACEDIM == 3)
                             wmac(i, j, k) = 0.0;
 #endif
                             break;
-                        case SlipWall:
-                        case NoSlipWall:
+                        case amrex::PhysBCType::slipwall:
+                        case amrex::PhysBCType::noslipwall:
                             umac(i, j, k) = 0.0;
                             vmac(i, j, k) = 0.0;
 #if (AMREX_SPACEDIM == 3)
                             wmac(i, j, k) = 0.0;
 #endif
                             break;
-                        case Outflow:
+                        case amrex::PhysBCType::outflow:
                             umac(i, j, k) = umac(i + 1, j, k);
                             vmac(i, j, k) = vmac(i + 1, j, k);
 #if (AMREX_SPACEDIM == 3)
                             wmac(i, j, k) = wmac(i + 1, j, k);
 #endif
                             break;
-                        case Symmetry:
+                        case amrex::PhysBCType::symmetry:
                             umac(i, j, k) = -umac(i + 2, j, k);
                             vmac(i, j, k) = vmac(i + 1, j, k);
 #if (AMREX_SPACEDIM == 3)
                             wmac(i, j, k) = wmac(i + 1, j, k);
 #endif
                             break;
-                        case Interior:
+                        case amrex::PhysBCType::interior:
                             // do nothing
                             break;
                     }
@@ -259,37 +258,37 @@ void Maestro::FillUmacGhost(
 
                 // hi x-faces
                 if (i == domhi[0] + 2) {
-                    switch (physbc_p[AMREX_SPACEDIM]) {
-                        case Inflow:
+                    switch (physbc_p[AMREX_SPACEDIM]) {  // NOLINT(bugprone-switch-missing-default-case)
+                        case amrex::PhysBCType::inflow:
                             umac(i, j, k) = umac(i - 1, j, k);
                             vmac(i - 1, j, k) = 0.0;
 #if (AMREX_SPACEDIM == 3)
                             wmac(i - 1, j, k) = 0.0;
 #endif
                             break;
-                        case SlipWall:
-                        case NoSlipWall:
+                        case amrex::PhysBCType::slipwall:
+                        case amrex::PhysBCType::noslipwall:
                             umac(i, j, k) = 0.0;
                             vmac(i - 1, j, k) = 0.0;
 #if (AMREX_SPACEDIM == 3)
                             wmac(i - 1, j, k) = 0.0;
 #endif
                             break;
-                        case Outflow:
+                        case amrex::PhysBCType::outflow:
                             umac(i, j, k) = umac(i - 1, j, k);
                             vmac(i - 1, j, k) = vmac(i - 2, j, k);
 #if (AMREX_SPACEDIM == 3)
                             wmac(i - 1, j, k) = wmac(i - 2, j, k);
 #endif
                             break;
-                        case Symmetry:
+                        case amrex::PhysBCType::symmetry:
                             umac(i, j, k) = -umac(i - 2, j, k);
                             vmac(i - 1, j, k) = vmac(i - 2, j, k);
 #if (AMREX_SPACEDIM == 3)
                             wmac(i - 1, j, k) = wmac(i - 2, j, k);
 #endif
                             break;
-                        case Interior:
+                        case amrex::PhysBCType::interior:
                             // do nothing
                             break;
                     }
@@ -301,37 +300,37 @@ void Maestro::FillUmacGhost(
             ParallelFor(ybx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 // lo y-faces
                 if (j == domlo[1] - 1) {
-                    switch (physbc_p[1]) {
-                        case Inflow:
+                    switch (physbc_p[1]) {  // NOLINT(bugprone-switch-missing-default-case)
+                        case amrex::PhysBCType::inflow:
                             umac(i, j, k) = 0.0;
                             vmac(i, j, k) = vmac(i, j + 1, k);
 #if (AMREX_SPACEDIM == 3)
                             wmac(i, j, k) = 0.0;
 #endif
                             break;
-                        case SlipWall:
-                        case NoSlipWall:
+                        case amrex::PhysBCType::slipwall:
+                        case amrex::PhysBCType::noslipwall:
                             umac(i, j, k) = 0.0;
                             vmac(i, j, k) = 0.0;
 #if (AMREX_SPACEDIM == 3)
                             wmac(i, j, k) = 0.0;
 #endif
                             break;
-                        case Outflow:
+                        case amrex::PhysBCType::outflow:
                             umac(i, j, k) = umac(i, j + 1, k);
                             vmac(i, j, k) = vmac(i, j + 1, k);
 #if (AMREX_SPACEDIM == 3)
                             wmac(i, j, k) = wmac(i, j + 1, k);
 #endif
                             break;
-                        case Symmetry:
+                        case amrex::PhysBCType::symmetry:
                             umac(i, j, k) = umac(i, j + 1, k);
                             vmac(i, j, k) = -vmac(i, j + 2, k);
 #if (AMREX_SPACEDIM == 3)
                             wmac(i, j, k) = wmac(i, j + 1, k);
 #endif
                             break;
-                        case Interior:
+                        case amrex::PhysBCType::interior:
                             // do nothing
                             break;
                     }
@@ -339,37 +338,37 @@ void Maestro::FillUmacGhost(
 
                 // hi y-faces
                 if (j == domhi[1] + 2) {
-                    switch (physbc_p[AMREX_SPACEDIM + 1]) {
-                        case Inflow:
+                    switch (physbc_p[AMREX_SPACEDIM + 1]) {  // NOLINT(bugprone-switch-missing-default-case)
+                        case amrex::PhysBCType::inflow:
                             umac(i, j - 1, k) = 0.0;
                             vmac(i, j, k) = vmac(i, j - 1, k);
 #if (AMREX_SPACEDIM == 3)
                             wmac(i, j - 1, k) = 0.0;
 #endif
                             break;
-                        case SlipWall:
-                        case NoSlipWall:
+                        case amrex::PhysBCType::slipwall:
+                        case amrex::PhysBCType::noslipwall:
                             umac(i, j - 1, k) = 0.0;
                             vmac(i, j, k) = 0.0;
 #if (AMREX_SPACEDIM == 3)
                             wmac(i, j - 1, k) = 0.0;
 #endif
                             break;
-                        case Outflow:
+                        case amrex::PhysBCType::outflow:
                             umac(i, j - 1, k) = umac(i, j - 2, k);
                             vmac(i, j, k) = vmac(i, j - 1, k);
 #if (AMREX_SPACEDIM == 3)
                             wmac(i, j - 1, k) = wmac(i, j - 2, k);
 #endif
                             break;
-                        case Symmetry:
+                        case amrex::PhysBCType::symmetry:
                             umac(i, j - 1, k) = umac(i, j - 2, k);
                             vmac(i, j, k) = -vmac(i, j - 2, k);
 #if (AMREX_SPACEDIM == 3)
                             wmac(i, j - 1, k) = wmac(i, j - 2, k);
 #endif
                             break;
-                        case Interior:
+                        case amrex::PhysBCType::interior:
                             // do nothing
                             break;
                     }
@@ -383,29 +382,29 @@ void Maestro::FillUmacGhost(
             ParallelFor(zbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 // lo z-faces
                 if (k == domlo[2] - 1) {
-                    switch (physbc_p[2]) {
-                        case Inflow:
+                    switch (physbc_p[2]) {  // NOLINT(bugprone-switch-missing-default-case)
+                        case amrex::PhysBCType::inflow:
                             umac(i, j, k) = 0.0;
                             vmac(i, j, k) = 0.0;
                             wmac(i, j, k) = wmac(i, j, k + 1);
                             break;
-                        case SlipWall:
-                        case NoSlipWall:
+                        case amrex::PhysBCType::slipwall:
+                        case amrex::PhysBCType::noslipwall:
                             umac(i, j, k) = 0.0;
                             vmac(i, j, k) = 0.0;
                             wmac(i, j, k) = 0.0;
                             break;
-                        case Outflow:
+                        case amrex::PhysBCType::outflow:
                             umac(i, j, k) = umac(i, j, k + 1);
                             vmac(i, j, k) = vmac(i, j, k + 1);
                             wmac(i, j, k) = wmac(i, j, k + 1);
                             break;
-                        case Symmetry:
+                        case amrex::PhysBCType::symmetry:
                             umac(i, j, k) = umac(i, j, k + 1);
                             vmac(i, j, k) = vmac(i, j, k + 1);
                             wmac(i, j, k) = -wmac(i, j, k + 2);
                             break;
-                        case Interior:
+                        case amrex::PhysBCType::interior:
                             // do nothing
                             break;
                     }
@@ -413,29 +412,29 @@ void Maestro::FillUmacGhost(
 
                 // hi z-faces
                 if (k == domhi[2] + 2) {
-                    switch (physbc_p[2 + AMREX_SPACEDIM]) {
-                        case Inflow:
+                    switch (physbc_p[2 + AMREX_SPACEDIM]) {  // NOLINT(bugprone-switch-missing-default-case)
+                        case amrex::PhysBCType::inflow:
                             umac(i, j, k - 1) = 0.0;
                             vmac(i, j, k - 1) = 0.0;
                             wmac(i, j, k) = wmac(i, j, k - 1);
                             break;
-                        case SlipWall:
-                        case NoSlipWall:
+                        case amrex::PhysBCType::slipwall:
+                        case amrex::PhysBCType::noslipwall:
                             umac(i, j, k - 1) = 0.0;
                             vmac(i, j, k - 1) = 0.0;
                             wmac(i, j, k) = 0.0;
                             break;
-                        case Outflow:
+                        case amrex::PhysBCType::outflow:
                             umac(i, j, k - 1) = umac(i, j, k - 2);
                             vmac(i, j, k - 1) = vmac(i, j, k - 2);
                             wmac(i, j, k) = wmac(i, j, k - 1);
                             break;
-                        case Symmetry:
+                        case amrex::PhysBCType::symmetry:
                             umac(i, j, k - 1) = umac(i, j, k - 2);
                             vmac(i, j, k - 1) = vmac(i, j, k - 2);
                             wmac(i, j, k) = -wmac(i, j, k - 2);
                             break;
-                        case Interior:
+                        case amrex::PhysBCType::interior:
                             // do nothing
                             break;
                     }
@@ -489,7 +488,7 @@ void Maestro::FillPatchUedge(
                 fine_src_ba.surroundingNodes(dir);
 
                 // number of boxes and weights used for KnapSack distribution
-                const int N = fine_src_ba.size();
+                const int N = static_cast<int>(fine_src_ba.size());
                 std::vector<long> wgts(N);
 
 #ifdef _OPENMP
@@ -515,7 +514,7 @@ void Maestro::FillPatchUedge(
                 fine_src.setVal(1.e200);
 
                 // We want to fill crse_src from coarse uedge
-                crse_src.copy(uedge[lev - 1][dir], 0, 0, 1, 1, 0);
+                crse_src.ParallelCopy(uedge[lev - 1][dir], 0, 0, 1, 1, 0);
 
 #ifdef _OPENMP
 #pragma omp parallel
@@ -629,7 +628,7 @@ void Maestro::FillPatchUedge(
                 // Replace pc-interpd fine data with preferred u_mac data at
                 // this level u_mac valid only on surrounding faces of valid
                 // region - this op will not fill grow region.
-                fine_src.copy(uedge[lev][dir]);
+                fine_src.ParallelCopy(uedge[lev][dir]);
 
                 // Interpolate unfilled grow cells using best data from
                 // surrounding faces of valid region, and pc-interpd data
@@ -806,14 +805,14 @@ void Maestro::FillPatchUedge(
                 // make a copy of the original fine uedge but with no ghost cells
                 MultiFab uedge_f_save(uedge[lev][dir].boxArray(),
                                       uedge[lev][dir].DistributionMap(), 1, 0);
-                uedge_f_save.copy(uedge[lev][dir]);
+                uedge_f_save.ParallelCopy(uedge[lev][dir]);
 
                 // copy in the grown data into fine uedge
-                uedge[lev][dir].copy(fine_src, 0, 0, 1, 0, nGrow);
+                uedge[lev][dir].ParallelCopy(fine_src, 0, 0, 1, 0, nGrow);
 
                 // copy the original valid region back into uedge
                 // to we don't change the values on the C-F interface
-                uedge[lev][dir].copy(uedge_f_save);
+                uedge[lev][dir].ParallelCopy(uedge_f_save);
             }
 
         }  // end if

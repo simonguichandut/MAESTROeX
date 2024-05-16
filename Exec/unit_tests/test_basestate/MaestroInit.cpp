@@ -1,8 +1,7 @@
 
 #include <AMReX_VisMF.H>
 #include <Maestro.H>
-#include <Maestro_F.H>
-#include <Problem_F.H>
+
 using namespace amrex;
 
 // initialize AMR data
@@ -49,7 +48,7 @@ void Maestro::Init() {
 
     // compute initial time step
     // FirstDt();
-    dt = initial_dt;
+    dt = problem_rp::initial_dt;
 
     if (stop_time >= 0. && t_old + dt > stop_time) {
         dt = amrex::min(dt, stop_time - t_old);

@@ -1,6 +1,5 @@
 
 #include <Maestro.H>
-#include <Maestro_F.H>
 
 using namespace amrex;
 
@@ -12,7 +11,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                   Array4<Real> const Ip, Array4<Real> const Im,
                   const Box& domainBox, const Vector<BCRec>& bcs,
                   const amrex::GpuArray<Real, AMREX_SPACEDIM> dx,
-                  const bool is_umac, const int comp, const int bccomp) {
+                  const bool is_umac, const int comp, const int bccomp) const {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::PPM()", PPM);
 
@@ -115,9 +114,9 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 sm = 3.0 * s(i, j, k, n) - 2.0 * sp;
             }
 
-            // Different stencil needed for x-component of EXT_DIR and HOEXTRAP adv_bc's.
+            // Different stencil needed for x-component of amrex::BCType::ext_dir and amrex::BCType::hoextrap adv_bc's.
             if (i == domlo[0]) {
-                if (bclo == EXT_DIR || bclo == HOEXTRAP) {
+                if (bclo == amrex::BCType::ext_dir || bclo == amrex::BCType::hoextrap) {
                     // The value in the first cc ghost cell represents the edge value.
                     sm = s(i - 1, j, k, n);
 
@@ -133,7 +132,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 }
 
             } else if (i == domlo[0] + 1) {
-                if (bclo == EXT_DIR || bclo == HOEXTRAP) {
+                if (bclo == amrex::BCType::ext_dir || bclo == amrex::BCType::hoextrap) {
                     // Use a modified stencil to get sedge on the first interior edge.
                     sm = -0.2 * s(i - 2, j, k, n) + 0.75 * s(i - 1, j, k, n) +
                          0.5 * s(i, j, k, n) - 0.05 * s(i + 1, j, k, n);
@@ -161,7 +160,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 }
 
             } else if (i == domhi[0]) {
-                if (bchi == EXT_DIR || bchi == HOEXTRAP) {
+                if (bchi == amrex::BCType::ext_dir || bchi == amrex::BCType::hoextrap) {
                     // The value in the first cc ghost cell represents the edge value.
                     sp = s(i + 1, j, k, n);
 
@@ -177,7 +176,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 }
 
             } else if (i == domhi[0] - 1) {
-                if (bchi == EXT_DIR || bchi == HOEXTRAP) {
+                if (bchi == amrex::BCType::ext_dir || bchi == amrex::BCType::hoextrap) {
                     // Use a modified stencil to get sp on the first interior edge.
                     sp = -0.2 * s(i + 2, j, k, n) + 0.75 * s(i + 1, j, k, n) +
                          0.5 * s(i, j, k, n) - 0.05 * s(i - 1, j, k, n);
@@ -416,7 +415,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                         if (sgn * (delam - alpham) >= 1.e-10) {
                             alphap = -2.0 * delam -
                                      2.0 * sgn *
-                                         sqrt(delam * delam - delam * alpham);
+                                         std::sqrt(delam * delam - delam * alpham);
                         } else {
                             alphap = -2.0 * alpham;
                         }
@@ -430,7 +429,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                         if (sgn * (delap - alphap) >= 1.e-10) {
                             alpham = (-2.0 * delap -
                                       2.0 * sgn *
-                                          sqrt(delap * delap - delap * alphap));
+                                          std::sqrt(delap * delap - delap * alphap));
                         } else {
                             alpham = -2.0 * alphap;
                         }
@@ -441,8 +440,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
             Real sm = s(i, j, k, n) + alpham;
             Real sp = s(i, j, k, n) + alphap;
 
-            // different stencil needed for x-component of EXT_DIR and HOEXTRAP adv_bc's
-            if (bclo == EXT_DIR || bclo == HOEXTRAP) {
+            // different stencil needed for x-component of amrex::BCType::ext_dir and amrex::BCType::hoextrap adv_bc's
+            if (bclo == amrex::BCType::ext_dir || bclo == amrex::BCType::hoextrap) {
                 if (i == domlo[0]) {
                     // The value in the first cc ghost cell represents the edge value.
                     sm = s(i - 1, j, k, n);
@@ -551,8 +550,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                                 if (sgn * (delam - alpham) >= 1.e-10) {
                                     alphap = (-2.0 * delam -
                                               2.0 * sgn *
-                                                  sqrt(delam * delam -
-                                                       delam * alpham));
+                                                  std::sqrt(delam * delam -
+                                                            delam * alpham));
                                 } else {
                                     alphap = -2.0 * alpham;
                                 }
@@ -567,8 +566,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                                 if (sgn * (delap - alphap) >= 1.e10) {
                                     alpham = (-2.0 * delap -
                                               2.0 * sgn *
-                                                  sqrt(delap * delap -
-                                                       delap * alphap));
+                                                  std::sqrt(delap * delap -
+                                                            delap * alphap));
                                 } else {
                                     alpham = -2.0 * alphap;
                                 }
@@ -581,7 +580,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 }
             }
 
-            if (bchi == EXT_DIR || bchi == HOEXTRAP) {
+            if (bchi == amrex::BCType::ext_dir || bchi == amrex::BCType::hoextrap) {
                 if (i == domhi[0]) {
                     // The value in the first cc ghost cell represents the edge value.
                     sp = s(i + 1, j, k, n);
@@ -689,8 +688,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                                 if (sgn * (delam - alpham) >= 1.e-10) {
                                     alphap = (-2.0 * delam -
                                               2.0 * sgn *
-                                                  sqrt(delam * delam -
-                                                       delam * alpham));
+                                                  std::sqrt(delam * delam -
+                                                            delam * alpham));
                                 } else {
                                     alphap = -2.0 * alpham;
                                 }
@@ -705,8 +704,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                                 if (sgn * (delap - alphap) >= 1.e-10) {
                                     alpham = (-2.0 * delap -
                                               2.0 * sgn *
-                                                  sqrt(delap * delap -
-                                                       delap * alphap));
+                                                  std::sqrt(delap * delap -
+                                                            delap * alphap));
                                 } else {
                                     alpham = -2.0 * alphap;
                                 }
@@ -861,9 +860,9 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 sm = 3.0 * s(i, j, k, n) - 2.0 * sp;
             }
 
-            // Different stencil needed for y-component of EXT_DIR and HOEXTRAP adv_bc's.
+            // Different stencil needed for y-component of amrex::BCType::ext_dir and amrex::BCType::hoextrap adv_bc's.
             if (j == domlo[1]) {
-                if (bclo == EXT_DIR || bclo == HOEXTRAP) {
+                if (bclo == amrex::BCType::ext_dir || bclo == amrex::BCType::hoextrap) {
                     // The value in the first cc ghost cell represents the edge value.
                     sm = s(i, j - 1, k, n);
 
@@ -879,7 +878,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 }
 
             } else if (j == domlo[1] + 1) {
-                if (bclo == EXT_DIR || bclo == HOEXTRAP) {
+                if (bclo == amrex::BCType::ext_dir || bclo == amrex::BCType::hoextrap) {
                     // Use a modified stencil to get sm on the first interior edge.
                     sm = -0.2 * s(i, j - 2, k, n) + 0.75 * s(i, j - 1, k, n) +
                          0.5 * s(i, j, k, n) - 0.05 * s(i, j + 1, k, n);
@@ -907,7 +906,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 }
 
             } else if (j == domhi[1]) {
-                if (bchi == EXT_DIR || bchi == HOEXTRAP) {
+                if (bchi == amrex::BCType::ext_dir || bchi == amrex::BCType::hoextrap) {
                     // The value in the first cc ghost cell represents the edge value.
                     sp = s(i, j + 1, k, n);
 
@@ -923,7 +922,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 }
 
             } else if (j == domhi[1] - 1) {
-                if (bchi == EXT_DIR || bchi == HOEXTRAP) {
+                if (bchi == amrex::BCType::ext_dir || bchi == amrex::BCType::hoextrap) {
                     // Use a modified stencil to get sp on the first interior edge.
                     sp = -0.2 * s(i, j + 2, k, n) + 0.75 * s(i, j + 1, k, n) +
                          0.5 * s(i, j, k, n) - 0.05 * s(i, j - 1, k, n);
@@ -1160,7 +1159,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                         if (sgn * (delam - alpham) >= 1.e-10) {
                             alphap = (-2.0 * delam -
                                       2.0 * sgn *
-                                          sqrt(delam * delam - delam * alpham));
+                                          std::sqrt(delam * delam - delam * alpham));
                         } else {
                             alphap = -2.0 * alpham;
                         }
@@ -1174,7 +1173,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                         if (sgn * (delap - alphap) >= 1.e-10) {
                             alpham = (-2.0 * delap -
                                       2.0 * sgn *
-                                          sqrt(delap * delap - delap * alphap));
+                                          std::sqrt(delap * delap - delap * alphap));
                         } else {
                             alpham = -2.0 * alphap;
                         }
@@ -1185,8 +1184,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
             Real sm = s(i, j, k, n) + alpham;
             Real sp = s(i, j, k, n) + alphap;
 
-            // Different stencil needed for y-component of EXT_DIR and HOEXTRAP adv_bc's.
-            if (bclo == EXT_DIR || bclo == HOEXTRAP) {
+            // Different stencil needed for y-component of amrex::BCType::ext_dir and amrex::BCType::hoextrap adv_bc's.
+            if (bclo == amrex::BCType::ext_dir || bclo == amrex::BCType::hoextrap) {
                 if (j == domlo[1]) {
                     // The value in the first cc ghost cell represents the edge value.
                     sm = s(i, j - 1, k, n);
@@ -1295,8 +1294,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                                 if (sgn * (delam - alpham) >= 1.e-10) {
                                     alphap = (-2.0 * delam -
                                               2.0 * sgn *
-                                                  sqrt(delam * delam -
-                                                       delam * alpham));
+                                                  std::sqrt(delam * delam -
+                                                            delam * alpham));
                                 } else {
                                     alphap = -2.0 * alpham;
                                 }
@@ -1311,8 +1310,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                                 if (sgn * (delap - alphap) >= 1.e-10) {
                                     alpham = (-2.0 * delap -
                                               2.0 * sgn *
-                                                  sqrt(delap * delap -
-                                                       delap * alphap));
+                                                  std::sqrt(delap * delap -
+                                                            delap * alphap));
                                 } else {
                                     alpham = -2.0 * alphap;
                                 }
@@ -1325,7 +1324,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 }
             }
 
-            if (bchi == EXT_DIR || bchi == HOEXTRAP) {
+            if (bchi == amrex::BCType::ext_dir || bchi == amrex::BCType::hoextrap) {
                 if (j == domhi[1]) {
                     // The value in the first cc ghost cell represents the edge value.
                     sp = s(i, j + 1, k, n);
@@ -1435,8 +1434,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                                 if (sgn * (delam - alpham) >= 1.e-10) {
                                     alphap = (-2.0 * delam -
                                               2.0 * sgn *
-                                                  sqrt(delam * delam -
-                                                       delam * alpham));
+                                                  std::sqrt(delam * delam -
+                                                            delam * alpham));
                                 } else {
                                     alphap = -2.0 * alpham;
                                 }
@@ -1451,8 +1450,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                                 if (sgn * (delap - alphap) >= 1.e-10) {
                                     alpham = (-2.0 * delap -
                                               2.0 * sgn *
-                                                  sqrt(delap * delap -
-                                                       delap * alphap));
+                                                  std::sqrt(delap * delap -
+                                                            delap * alphap));
                                 } else {
                                     alpham = -2.0 * alphap;
                                 }
@@ -1604,9 +1603,9 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 sm = 3.0 * s(i, j, k, n) - 2.0 * sp;
             }
 
-            // Different stencil needed for z-component of EXT_DIR and HOEXTRAP adv_bc's.
+            // Different stencil needed for z-component of amrex::BCType::ext_dir and amrex::BCType::hoextrap adv_bc's.
             if (k == domlo[2]) {
-                if (bclo == EXT_DIR || bclo == HOEXTRAP) {
+                if (bclo == amrex::BCType::ext_dir || bclo == amrex::BCType::hoextrap) {
                     // The value in the first cc ghost cell represents the edge value.
                     sm = s(i, j, k - 1, n);
 
@@ -1622,7 +1621,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 }
 
             } else if (k == domlo[2] + 1) {
-                if (bclo == EXT_DIR || bclo == HOEXTRAP) {
+                if (bclo == amrex::BCType::ext_dir || bclo == amrex::BCType::hoextrap) {
                     // Use a modified stencil to get sm on the first interior edge.
                     sm = -0.2 * s(i, j, k - 2, n) + 0.75 * s(i, j, k - 1, n) +
                          0.5 * s(i, j, k, n) - 0.05 * s(i, j, k + 1, n);
@@ -1650,7 +1649,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 }
 
             } else if (k == domhi[2]) {
-                if (bchi == EXT_DIR || bchi == HOEXTRAP) {
+                if (bchi == amrex::BCType::ext_dir || bchi == amrex::BCType::hoextrap) {
                     // The value in the first cc ghost cell represents the edge value.
                     sp = s(i, j, k + 1, n);
 
@@ -1666,7 +1665,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 }
 
             } else if (k == domhi[2] - 1) {
-                if (bchi == EXT_DIR || bchi == HOEXTRAP) {
+                if (bchi == amrex::BCType::ext_dir || bchi == amrex::BCType::hoextrap) {
                     // Use a modified stencil to get sedge on the first interior edge.
                     sp = -0.2 * s(i, j, k + 2, n) + 0.75 * s(i, j, k + 1, n) +
                          0.5 * s(i, j, k, n) - 0.05 * s(i, j, k - 1, n);
@@ -1905,7 +1904,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                         if (sgn * (delam - alpham) >= 1.e-10) {
                             alphap = (-2.0 * delam -
                                       2.0 * sgn *
-                                          sqrt(delam * delam - delam * alpham));
+                                          std::sqrt(delam * delam - delam * alpham));
                         } else {
                             alphap = -2.0 * alpham;
                         }
@@ -1919,7 +1918,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                         if (sgn * (delap - alphap) >= 1.e-10) {
                             alpham = (-2.0 * delap -
                                       2.0 * sgn *
-                                          sqrt(delap * delap - delap * alphap));
+                                          std::sqrt(delap * delap - delap * alphap));
                         } else {
                             alpham = -2.0 * alphap;
                         }
@@ -1930,8 +1929,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
             Real sm = s(i, j, k, n) + alpham;
             Real sp = s(i, j, k, n) + alphap;
 
-            // Different stencil needed for z-component of EXT_DIR and HOEXTRAP adv_bc's.
-            if (bclo == EXT_DIR || bclo == HOEXTRAP) {
+            // Different stencil needed for z-component of amrex::BCType::ext_dir and amrex::BCType::hoextrap adv_bc's.
+            if (bclo == amrex::BCType::ext_dir || bclo == amrex::BCType::hoextrap) {
                 if (k == domlo[2]) {
                     // The value in the first cc ghost cell represents the edge value.
                     sm = s(i, j, k - 1, n);
@@ -2039,8 +2038,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                                 if (sgn * (delam - alpham) >= 1.e-10) {
                                     alphap = (-2.0 * delam -
                                               2.0 * sgn *
-                                                  sqrt(delam * delam -
-                                                       delam * alpham));
+                                                  std::sqrt(delam * delam -
+                                                            delam * alpham));
                                 } else {
                                     alphap = -2.0 * alpham;
                                 }
@@ -2055,8 +2054,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                                 if (sgn * (delap - alphap) >= 1.e-10) {
                                     alpham = (-2.0 * delap -
                                               2.0 * sgn *
-                                                  sqrt(delap * delap -
-                                                       delap * alphap));
+                                                  std::sqrt(delap * delap -
+                                                            delap * alphap));
                                 } else {
                                     alpham = -2.0 * alphap;
                                 }
@@ -2069,7 +2068,7 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                 }
             }
 
-            if (bchi == EXT_DIR || bchi == HOEXTRAP) {
+            if (bchi == amrex::BCType::ext_dir || bchi == amrex::BCType::hoextrap) {
                 if (k == domhi[2]) {
                     // The value in the first cc ghost cell represents the edge value.
                     sp = s(i, j, k + 1, n);
@@ -2179,8 +2178,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                                 if (sgn * (delam - alpham) >= 1.e-10) {
                                     alphap = (-2.0 * delam -
                                               2.0 * sgn *
-                                                  sqrt(delam * delam -
-                                                       delam * alpham));
+                                                  std::sqrt(delam * delam -
+                                                            delam * alpham));
                                 } else {
                                     alphap = -2.0 * alpham;
                                 }
@@ -2195,8 +2194,8 @@ void Maestro::PPM(const Box& bx, Array4<const Real> const s,
                                 if (sgn * (delap - alphap) >= 1.e-10) {
                                     alpham = (-2.0 * delap -
                                               2.0 * sgn *
-                                                  sqrt(delap * delap -
-                                                       delap * alphap));
+                                                  std::sqrt(delap * delap -
+                                                            delap * alphap));
                                 } else {
                                     alpham = -2.0 * alphap;
                                 }

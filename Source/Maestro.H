@@ -1,5 +1,5 @@
-#ifndef Maestro_H_
-#define Maestro_H_
+#ifndef Maestro_H
+#define Maestro_H
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -28,15 +28,37 @@ using namespace maestro;
 #include <PhysBCFunctMaestro.H>
 #include <SimpleLog.H>
 
-/// Define Real vector types for CUDA-compatability. If `AMREX_USE_CUDA`, then
-/// this will be stored in CUDA managed memory.
-#ifdef AMREX_USE_CUDA
+/// Define Real vector types for GPU-compatability. If `AMREX_USE_GPU`, then
+/// this will be stored in GPU managed memory.
+#ifdef AMREX_USE_GPU
 using RealVector = amrex::Gpu::ManagedVector<amrex::Real>;
 using IntVector = amrex::Gpu::ManagedVector<int>;
 #else
 using RealVector = amrex::Vector<amrex::Real>;
 using IntVector = amrex::Vector<int>;
 #endif
+
+
+// helpful enums for different options in the algorithm
+
+// these represent the four types of nodal projections
+enum projection_type {initial_projection_comp = 1,
+                      divu_iters_comp,
+                      pressure_iters_comp,
+                      regular_timestep_comp};
+
+enum species_pred {predict_rhoprime_and_X = 1,
+                   predict_rhoX,
+                   predict_rho_and_X};
+
+enum enthalpy_pred {predict_rhoh = 0,
+                    predict_rhohprime,
+                    predict_h,
+                    predict_T_then_rhohprime,
+                    predict_T_then_h,
+                    predict_hprime,
+                    predict_Tprime_then_h};
+
 
 // function called on GPU only
 AMREX_GPU_DEVICE
@@ -46,7 +68,7 @@ amrex::Real QuadInterp(const amrex::Real x, const amrex::Real x0,
                        const amrex::Real y2, const bool limit = true);
 
 /// hard code a maximum level limit
-#define MAESTRO_MAX_LEVELS 15
+constexpr int MAESTRO_MAX_LEVELS{15};
 
 class Maestro : public amrex::AmrCore {
    public:
@@ -56,8 +78,21 @@ class Maestro : public amrex::AmrCore {
 
     /// constructor
     Maestro();
+
     /// destructor
-    virtual ~Maestro();
+    ~Maestro() override;
+
+    // copy constructor
+    Maestro(Maestro& other) = delete;
+
+    // move constructor
+    Maestro(Maestro&& other) = delete;
+
+    // copy assignment
+    Maestro& operator= (const Maestro& other) = delete;
+
+    // move assignment
+    Maestro& operator= (Maestro&& other) = delete;
 
     // in `MaestroSetup.cpp`
     /// Setup the simulation.
@@ -118,10 +153,6 @@ class Maestro : public amrex::AmrCore {
     ///
     /// @param is_initIter is it the initial iteration?
     void AdvanceTimeStepAverage(bool is_initIter);
-
-    // advance solution at all levels for a single time step using SDC
-    // instead of Strang splitting
-    void AdvanceTimeStepSDC(bool is_initIter);
 
     // end MaestroAdvance.cpp functions
     ////////////
@@ -186,7 +217,7 @@ class Maestro : public amrex::AmrCore {
     /// @param sflux            scalar flux
     /// @param etarhoflux       `eta_rho` flux
     /// @param sedge            edge state of scalars
-    /// @param umac, w0mac      MAC velocity of full and base-state velocity
+    /// @param umac             MAC velocity of full state
     /// @param r0_old           old base-state density
     /// @param r0_edge_old      old base-state density on cell-edges
     /// @param r0mac_old        old MAC-projected base-state density
@@ -202,7 +233,6 @@ class Maestro : public amrex::AmrCore {
         amrex::Vector<amrex::MultiFab>& etarhoflux,
         amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& sedge,
         const amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& umac,
-        const amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& w0mac,
         const BaseState<amrex::Real>& rho0_old_in,
         const BaseState<amrex::Real>& rho0_edge_old_state,
         const amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>&
@@ -301,7 +331,7 @@ class Maestro : public amrex::AmrCore {
     ////////////
     // MaestroAverage.cpp functions
 
-    /// Compute the radial average of a quantitiy
+    /// Compute the radial average of a quantity
     ///
     /// @param mf       MultiFab containing quantity to be averaged
     /// @param phibar   Averaged quantity
@@ -331,15 +361,15 @@ class Maestro : public amrex::AmrCore {
         const amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> dx_fine,
         const amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> dx_lev);
 #endif
-    void ComputeCutoffCoords(const BaseState<amrex::Real>& rho0_state);
+    void ComputeCutoffCoords(const BaseState<amrex::Real>& rho0_state) const;
 
-    void RestrictBase(BaseState<Real>& s0, const bool is_cell_centered);
+    void RestrictBase(BaseState<Real>& s0, const bool is_cell_centered) const;
     void RestrictBase(const BaseStateArray<Real>& s0,
-                      const bool is_cell_centered);
+                      const bool is_cell_centered) const;
 
-    void FillGhostBase(BaseState<Real>& s0, const bool is_cell_centered);
+    void FillGhostBase(BaseState<Real>& s0, const bool is_cell_centered) const;
     void FillGhostBase(const BaseStateArray<Real>& s0,
-                       const bool is_cell_centered);
+                       const bool is_cell_centered) const;
 
     // end MaestroBaseStateGeometry.cpp functions
     ////////////
@@ -369,7 +399,7 @@ class Maestro : public amrex::AmrCore {
     // MaestroCelltoEdge.cpp functions
 
     void CelltoEdge(const BaseState<amrex::Real>& s0_cell_s,
-                    BaseState<amrex::Real>& s0_edge_s);
+                    BaseState<amrex::Real>& s0_edge_s) const;
 
     // end MaestroCelltoEdge.cpp functions
     ////////////
@@ -380,7 +410,7 @@ class Maestro : public amrex::AmrCore {
     /// Write a checkpoint at timestep `step`
     void WriteCheckPoint(int step);
     int ReadCheckPoint();
-    void GotoNextLine(std::istream& is);
+    static void GotoNextLine(std::istream& is);
 
     // end MaestroCheckpoint.cpp functions
     ////////////
@@ -430,10 +460,10 @@ class Maestro : public amrex::AmrCore {
     // MaestroDebug.cpp functions
 
     /// Print out the contents of the base state
-    void PrintBase(const RealVector& base, const bool is_cell_centered = true);
+    void PrintBase(const RealVector& base, const bool is_cell_centered = true) const;
 
     void PrintBase(const BaseState<amrex::Real>& base,
-                   const bool is_cell_centered = true);
+                   const bool is_cell_centered = true) const;
 
     /// Print out the contents of a Vector of MultiFabs
     void PrintMF(const amrex::Vector<amrex::MultiFab>& MF);
@@ -477,19 +507,6 @@ class Maestro : public amrex::AmrCore {
         const amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& w0mac,
         const BaseState<amrex::Real>& rho0_predicted_edge);
 
-    // SDC
-    void DensityAdvanceSDC(
-        int which_step, amrex::Vector<amrex::MultiFab>& scalold,
-        amrex::Vector<amrex::MultiFab>& scalnew,
-        amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& sedge,
-        amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& sflux,
-        amrex::Vector<amrex::MultiFab>& scal_force,
-        amrex::Vector<amrex::MultiFab>& etarhoflux,
-        amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& umac,
-        const amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& w0mac,
-        const BaseState<amrex::Real>& rho0_predicted_edge);
-    ////////////////////////
-
     ////////////
     // MaestroDiag.cpp functions
 
@@ -517,7 +534,7 @@ class Maestro : public amrex::AmrCore {
 
     void EstDt_Divu(BaseState<amrex::Real>& gp0,
                     const BaseState<amrex::Real>& p0,
-                    const BaseState<amrex::Real>& gamma1bar);
+                    const BaseState<amrex::Real>& gamma1bar) const;
 
     // end MaestroDt.cpp functions
     ////////////////////////
@@ -527,7 +544,7 @@ class Maestro : public amrex::AmrCore {
 
     void EnforceHSE(const BaseState<amrex::Real>& rho0_s,
                     BaseState<amrex::Real>& p0_s,
-                    const BaseState<amrex::Real>& grav_cell_s);
+                    const BaseState<amrex::Real>& grav_cell_s) const;
 
     // end  MaestroEnforceHSE.cpp functions
     ////////////////////////
@@ -555,18 +572,6 @@ class Maestro : public amrex::AmrCore {
         amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& umac,
         const amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& w0mac,
         const amrex::Vector<amrex::MultiFab>& thermal);
-
-    // SDC
-    void EnthalpyAdvanceSDC(
-        int which_step, amrex::Vector<amrex::MultiFab>& scalold,
-        amrex::Vector<amrex::MultiFab>& scalnew,
-        amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& sedge,
-        amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& sflux,
-        amrex::Vector<amrex::MultiFab>& scal_force,
-        amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& umac,
-        const amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& w0mac,
-        const amrex::Vector<amrex::MultiFab>& thermal);
-    ////////////////////////
 
     ////////////////////////
     // MaestroFillData.cpp functions
@@ -612,7 +617,7 @@ class Maestro : public amrex::AmrCore {
     void GetData(int lev, amrex::Real time, amrex::Vector<amrex::MultiFab*>& mf,
                  amrex::Vector<amrex::Real>& mftime,
                  amrex::Vector<amrex::MultiFab>& mf_old,
-                 amrex::Vector<amrex::MultiFab>& mf_new);
+                 amrex::Vector<amrex::MultiFab>& mf_new) const;
 
     /// Set covered coarse cells to be the average of overlying fine cells
     ///
@@ -779,7 +784,7 @@ class Maestro : public amrex::AmrCore {
     /// finer levels.  This function creates a new fine
     /// level that did not exist before by interpolating from the coarser level
     /// overrides the pure virtual function in `AmrCore`
-    virtual void MakeNewLevelFromScratch(
+    void MakeNewLevelFromScratch(
         int lev, amrex::Real time, const amrex::BoxArray& ba,
         const amrex::DistributionMapping& dm) override;
 
@@ -788,8 +793,6 @@ class Maestro : public amrex::AmrCore {
 
     /// Performs the divu iteration
     void DivuIter(int istep_divu_iter);
-    // SDC
-    void DivuIterSDC(int istep_divu_iter);
 
     /// Performs the initial iteration to initialize `gradpi`
     void InitIter();
@@ -800,12 +803,12 @@ class Maestro : public amrex::AmrCore {
     ////////////
     // MaestroInitData.cpp functions
 
-    void InitLevelData(const int lev, const amrex::Real time,
+    void InitLevelData(const int lev, const amrex::Real time,  // NOLINT(readability-convert-member-functions-to-static)
                        const amrex::MFIter& mfi,
                        const amrex::Array4<amrex::Real> scal,
                        const amrex::Array4<amrex::Real> vel);
 
-    void InitLevelDataSphr(const int lev, const amrex::Real time,
+    void InitLevelDataSphr(const int lev, const amrex::Real time,    // NOLINT(readability-convert-member-functions-to-static)
                            amrex::MultiFab& scal, amrex::MultiFab& vel);
 
     // end MaestroInitData.cpp functions
@@ -877,7 +880,7 @@ class Maestro : public amrex::AmrCore {
                    const BaseState<amrex::Real>& rho0_s,
                    const BaseState<amrex::Real>& p0_s,
                    const BaseState<amrex::Real>& gamma1bar_s,
-                   const BaseState<amrex::Real>& grav_cell_s);
+                   const BaseState<amrex::Real>& grav_cell_s) const;
 
     // end MaestroMakeBeta0.cpp functions
     ////////////
@@ -931,7 +934,7 @@ class Maestro : public amrex::AmrCore {
                                const amrex::Box& domainBox,
                                const amrex::Vector<amrex::BCRec>& bcs,
                                const amrex::GpuArray<Real, AMREX_SPACEDIM> dx,
-                               int comp, int bccomp, bool is_vel);
+                               int comp, int bccomp, bool is_vel) const;
 
     void MakeEdgeScalEdges(const amrex::MFIter& mfi,
                            amrex::Array4<amrex::Real> const slx,
@@ -952,13 +955,13 @@ class Maestro : public amrex::AmrCore {
                            const amrex::Vector<amrex::BCRec>& bcs,
                            const amrex::GpuArray<Real, AMREX_SPACEDIM> dx,
                            int comp, int bccomp, const bool is_vel,
-                           const bool is_conservative);
+                           const bool is_conservative) const;
 #else
     void MakeDivU(const amrex::Box& bx, amrex::Array4<amrex::Real> const divu,
                   amrex::Array4<amrex::Real> const umac,
                   amrex::Array4<amrex::Real> const vmac,
                   amrex::Array4<amrex::Real> const wmac,
-                  const amrex::GpuArray<Real, AMREX_SPACEDIM> dx);
+                  const amrex::GpuArray<Real, AMREX_SPACEDIM> dx) const;
 
     void MakeEdgeScalPredictor(const amrex::MFIter& mfi,
                                amrex::Array4<amrex::Real> const slx,
@@ -980,7 +983,7 @@ class Maestro : public amrex::AmrCore {
                                const amrex::Box& domainBox,
                                const amrex::Vector<amrex::BCRec>& bcs,
                                const amrex::GpuArray<Real, AMREX_SPACEDIM> dx,
-                               int comp, int bccomp, const bool is_vel);
+                               int comp, int bccomp, const bool is_vel) const;
 
     void MakeEdgeScalTransverse(const amrex::MFIter& mfi,
                                 amrex::Array4<amrex::Real> const slx,
@@ -1007,7 +1010,7 @@ class Maestro : public amrex::AmrCore {
                                 const amrex::Vector<amrex::BCRec>& bcs,
                                 const amrex::GpuArray<Real, AMREX_SPACEDIM> dx,
                                 int comp, int bccomp, const bool is_vel,
-                                const bool is_conservative);
+                                const bool is_conservative) const;
 
     void MakeEdgeScalEdges(const amrex::MFIter& mfi,
                            amrex::Array4<amrex::Real> const slx,
@@ -1036,7 +1039,7 @@ class Maestro : public amrex::AmrCore {
                            const amrex::Vector<amrex::BCRec>& bcs,
                            const amrex::GpuArray<Real, AMREX_SPACEDIM> dx,
                            int comp, int bccomp, const bool is_vel,
-                           const bool is_conservative);
+                           const bool is_conservative) const;
 #endif
     // end MaestroMakeEdgeScal.cpp functions
     ////////////
@@ -1045,15 +1048,15 @@ class Maestro : public amrex::AmrCore {
     // MaestroMakeEdgeState.cpp functions
     void MakeEdgeState1d(BaseState<amrex::Real>& s,
                          BaseState<amrex::Real>& sedge,
-                         BaseState<amrex::Real>& force);
+                         BaseState<amrex::Real>& force) const;
 
     void MakeEdgeState1dSphr(BaseState<amrex::Real>& s_state,
                              BaseState<amrex::Real>& sedge_state,
-                             BaseState<amrex::Real>& force_state);
+                             BaseState<amrex::Real>& force_state) const;
 
     void MakeEdgeState1dPlanar(BaseState<amrex::Real>& s_state,
                                BaseState<amrex::Real>& sedge_state,
-                               BaseState<amrex::Real>& force_state);
+                               BaseState<amrex::Real>& force_state) const;
     // end MaestroMakeEdgeState.cpp functions
     ////////////
 
@@ -1067,12 +1070,14 @@ class Maestro : public amrex::AmrCore {
     /// @param etarho_flux  \f$\eta_\rho\f$ flux
     void MakeEtarho(const amrex::Vector<amrex::MultiFab>& etarho_flux);
 
+#if AMREX_SPACEDIM == 3
     void MakeEtarhoSphr(
         const amrex::Vector<amrex::MultiFab>& scal_old,
         const amrex::Vector<amrex::MultiFab>& scal_new,
         const amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& umac,
         const amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>&
             w0mac);
+#endif
 
     void MakeEtarhoPlanar(
         const amrex::Vector<amrex::MultiFab>& scal_old,
@@ -1086,10 +1091,10 @@ class Maestro : public amrex::AmrCore {
     // MaestroMakeGrav.cpp functions
 
     void MakeGravCell(BaseState<amrex::Real>& grav_cell,
-                      const BaseState<amrex::Real>& rho0_s);
+                      const BaseState<amrex::Real>& rho0_s) const;
 
     void MakeGravEdge(BaseState<amrex::Real>& grav_edge_state,
-                      const BaseState<amrex::Real>& rho0_state);
+                      const BaseState<amrex::Real>& rho0_state) const;
 
     // end MaestroMakeGrav.cpp functions
     ////////////
@@ -1204,8 +1209,6 @@ class Maestro : public amrex::AmrCore {
     void Makew0Planar(const BaseState<amrex::Real>& w0_old,
                       BaseState<amrex::Real>& w0_force,
                       const BaseState<amrex::Real>& Sbar_in,
-                      const BaseState<amrex::Real>& rho0_old_in,
-                      const BaseState<amrex::Real>& rho0_new_in,
                       const BaseState<amrex::Real>& p0_old_in,
                       const BaseState<amrex::Real>& p0_new_in,
                       const BaseState<amrex::Real>& gamma1bar_old_in,
@@ -1238,12 +1241,12 @@ class Maestro : public amrex::AmrCore {
                     const BaseState<amrex::Real>& p0_minus_peosbar,
                     const amrex::Real dt_in, const amrex::Real dtold_in);
 
-    void Tridiag(const BaseStateArray<Real>& a, const BaseStateArray<Real>& b,
-                 const BaseStateArray<Real>& c, const BaseStateArray<Real>& r,
-                 const BaseStateArray<Real>& u, const int n);
+    static void Tridiag(const BaseStateArray<Real>& a, const BaseStateArray<Real>& b,
+                        const BaseStateArray<Real>& c, const BaseStateArray<Real>& r,
+                        const BaseStateArray<Real>& u, const int n);
 
     void ProlongBasetoUniform(const BaseState<amrex::Real>& base_ml_s,
-                              BaseState<amrex::Real>& base_fine_s);
+                              BaseState<amrex::Real>& base_fine_s) const;
 
     // end MaestroMakew0.cpp functions
     ////////////
@@ -1281,7 +1284,7 @@ class Maestro : public amrex::AmrCore {
     // MaestroPlot.cpp functions
 
     /// Get plotfile name
-    void PlotFileName(const int lev, std::string* plotfilename);
+    static void PlotFileName(const int lev, std::string* plotfilename);
 
     /// Put together an array of multifabs for writing
     amrex::Vector<const amrex::MultiFab*> PlotFileMF(
@@ -1303,11 +1306,11 @@ class Maestro : public amrex::AmrCore {
         const amrex::Vector<std::string>& small_plot_varnames);
 
     /// Set plotfile variables names
-    amrex::Vector<std::string> PlotFileVarNames(int* nPlot) const;
+    static amrex::Vector<std::string> PlotFileVarNames(int* nPlot);
 
     /// Set small plotfile variables names
-    amrex::Vector<std::string> SmallPlotFileVarNames(
-        int* nPlot, amrex::Vector<std::string> varnames) const;
+    static amrex::Vector<std::string> SmallPlotFileVarNames(
+        int* nPlot, amrex::Vector<std::string> varnames);
 
     /// Write a small plotfile to disk
     void WriteSmallPlotFile(const int step, const amrex::Real t_in,
@@ -1335,8 +1338,10 @@ class Maestro : public amrex::AmrCore {
     void WriteJobInfo(const std::string& dir) const;
 
     /// Calculate the magnitude of the velocity
-    void MakeMagvel(const amrex::Vector<amrex::MultiFab>& vel,
-                    amrex::Vector<amrex::MultiFab>& magvel);
+    void MakeMagvel(
+        const amrex::Vector<amrex::MultiFab>& vel,
+        const amrex::Vector<std::array<amrex::MultiFab, AMREX_SPACEDIM>>& w0mac,
+        amrex::Vector<amrex::MultiFab>& magvel);
 
     /// Calculate the radial and circular components of the velocity
     void MakeVelrc(const amrex::Vector<amrex::MultiFab>& vel,
@@ -1397,7 +1402,7 @@ class Maestro : public amrex::AmrCore {
              amrex::Array4<amrex::Real> const Im, const amrex::Box& domainBox,
              const amrex::Vector<amrex::BCRec>& bcs,
              const amrex::GpuArray<Real, AMREX_SPACEDIM> dx, const bool is_umac,
-             const int comp, const int bccomp);
+             const int comp, const int bccomp) const;
     ////////////
 
     ////////////
@@ -1413,14 +1418,6 @@ class Maestro : public amrex::AmrCore {
                const BaseState<amrex::Real>& p0, const amrex::Real dt_in,
                const amrex::Real time_in);
 
-    void ReactSDC(const amrex::Vector<amrex::MultiFab>& s_in,
-                  amrex::Vector<amrex::MultiFab>& s_out,
-                  amrex::Vector<amrex::MultiFab>& rho_Hext,
-                  const BaseState<amrex::Real>& p0, const amrex::Real dt_in,
-                  const amrex::Real time_in,
-                  amrex::Vector<amrex::MultiFab>& source);
-
-#ifndef SDC
     void Burner(const amrex::Vector<amrex::MultiFab>& s_in,
                 amrex::Vector<amrex::MultiFab>& s_out,
                 const amrex::Vector<amrex::MultiFab>& rho_Hext,
@@ -1429,19 +1426,7 @@ class Maestro : public amrex::AmrCore {
                 const BaseState<amrex::Real>& p0, const amrex::Real dt_in,
                 const amrex::Real time_in);
 
-#else
-    void Burner(const amrex::Vector<amrex::MultiFab>& s_in,
-                amrex::Vector<amrex::MultiFab>& s_out,
-                const BaseState<amrex::Real>& p0, const amrex::Real dt_in,
-                const amrex::Real time_in,
-                const amrex::Vector<amrex::MultiFab>& source);
-#endif
-
     // compute heating terms, rho_omegadot and rho_Hnuc
-    void MakeReactionRates(amrex::Vector<amrex::MultiFab>& rho_omegadot,
-                           amrex::Vector<amrex::MultiFab>& rho_Hnuc,
-                           const amrex::Vector<amrex::MultiFab>& scal);
-
     void MakeIntraCoeffs(const amrex::Vector<amrex::MultiFab>& scal1,
                          const amrex::Vector<amrex::MultiFab>& scal2,
                          amrex::Vector<amrex::MultiFab>& cp,
@@ -1474,22 +1459,22 @@ class Maestro : public amrex::AmrCore {
     /// Tag all cells for refinement
     ///
     /// Overrides the pure virtual function in `AmrCore`
-    virtual void ErrorEst(int lev, amrex::TagBoxArray& tags, amrex::Real time,
-                          int ng) override;
+    void ErrorEst(int lev, amrex::TagBoxArray& tags, amrex::Real time,
+                  int ng) override;
 
     /// Within a call to `AmrCore::regrid`, this function fills in data at a level
     /// that existed before, using pre-existing fine and interpolated coarse data
     ///
     /// overrides the pure virtual function in `AmrCore`
-    virtual void RemakeLevel(int lev, amrex::Real time,
-                             const amrex::BoxArray& ba,
-                             const amrex::DistributionMapping& dm) override;
+    void RemakeLevel(int lev, amrex::Real time,
+                     const amrex::BoxArray& ba,
+                     const amrex::DistributionMapping& dm) override;
 
     /// Within a call to `AmrCore::regrid`, this function fills in data at a level
     /// that did NOT exist before, using interpolated coarse data
     ///
     /// overrides the pure virtual function in `AmrCore`
-    virtual void MakeNewLevelFromCoarse(
+    void MakeNewLevelFromCoarse(
         int lev, amrex::Real time, const amrex::BoxArray& ba,
         const amrex::DistributionMapping& dm) override;
 
@@ -1497,7 +1482,7 @@ class Maestro : public amrex::AmrCore {
     /// at a level of refinement that is no longer needed
     ///
     /// overrides the pure virtual function in `AmrCore`
-    virtual void ClearLevel(int lev) override;
+    void ClearLevel(int lev) override;
 
     // end regridding functions
     ////////////
@@ -1571,13 +1556,13 @@ class Maestro : public amrex::AmrCore {
     ////////////
     // MaestroSetup.cpp functions
 
-    void ExternInit();
+    static void ExternInit();
 
     /// Read in C++ parameters from inputs file
     void ReadParameters();
 
     /// Define variable mappings (`Rho`, `RhoH`, ..., `Nscal`, etc.)
-    void VariableSetup();
+    static void VariableSetup();
 
     /// Set up `BCRec` definitions for BC types
     void BCSetup();
@@ -1587,23 +1572,23 @@ class Maestro : public amrex::AmrCore {
 
     ////////////
     // MaestroSlopes.cpp function
-    void Slopex(const amrex::Box& bx, amrex::Array4<amrex::Real> const s,
-                amrex::Array4<amrex::Real> const slx,
-                const amrex::Box& domainBox,
-                const amrex::Vector<amrex::BCRec>& bcs, int ncomp,
-                int bc_start_comp);
+    static void Slopex(const amrex::Box& bx, amrex::Array4<amrex::Real> const s,
+                       amrex::Array4<amrex::Real> const slx,
+                       const amrex::Box& domainBox,
+                       const amrex::Vector<amrex::BCRec>& bcs, int ncomp,
+                       int bc_start_comp);
 
-    void Slopey(const amrex::Box& bx, amrex::Array4<amrex::Real> const s,
-                amrex::Array4<amrex::Real> const sly,
-                const amrex::Box& domainBox,
-                const amrex::Vector<amrex::BCRec>& bcs, int ncomp,
-                int bc_start_comp);
+    static void Slopey(const amrex::Box& bx, amrex::Array4<amrex::Real> const s,
+                       amrex::Array4<amrex::Real> const sly,
+                       const amrex::Box& domainBox,
+                       const amrex::Vector<amrex::BCRec>& bcs, int ncomp,
+                       int bc_start_comp);
 #if (AMREX_SPACEDIM == 3)
-    void Slopez(const amrex::Box& bx, amrex::Array4<amrex::Real> const s,
-                amrex::Array4<amrex::Real> const slz,
-                const amrex::Box& domainBox,
-                const amrex::Vector<amrex::BCRec>& bcs, int ncomp,
-                int bc_start_comp);
+    static void Slopez(const amrex::Box& bx, amrex::Array4<amrex::Real> const s,
+                       amrex::Array4<amrex::Real> const slz,
+                       const amrex::Box& domainBox,
+                       const amrex::Vector<amrex::BCRec>& bcs, int ncomp,
+                       int bc_start_comp);
 #endif
     ////////////
 
@@ -1690,19 +1675,6 @@ class Maestro : public amrex::AmrCore {
                         const amrex::Vector<amrex::MultiFab>& hcoeff2,
                         const amrex::Vector<amrex::MultiFab>& Xkcoeff2,
                         const amrex::Vector<amrex::MultiFab>& pcoeff2);
-
-    void ThermalConductSDC(int which_step,
-                           const amrex::Vector<amrex::MultiFab>& s_old,
-                           amrex::Vector<amrex::MultiFab>& s_hat,
-                           const amrex::Vector<amrex::MultiFab>& s_new,
-                           const BaseState<amrex::Real>& p0old,
-                           const BaseState<amrex::Real>& p0new,
-                           const amrex::Vector<amrex::MultiFab>& hcoeff1,
-                           const amrex::Vector<amrex::MultiFab>& Xkcoeff1,
-                           const amrex::Vector<amrex::MultiFab>& pcoeff1,
-                           const amrex::Vector<amrex::MultiFab>& hcoeff2,
-                           const amrex::Vector<amrex::MultiFab>& Xkcoeff2,
-                           const amrex::Vector<amrex::MultiFab>& pcoeff2);
 
     void MakeExplicitThermalHterm(amrex::Vector<amrex::MultiFab>& thermal,
                                   const amrex::Vector<amrex::MultiFab>& scal,
@@ -1879,19 +1851,6 @@ class Maestro : public amrex::AmrCore {
     // these are defined in `VariableSetup()`
     static int ng_s;  //< number of ghost cells for `sold/new` and `uold/new`
 
-    // these are defined in `Maestro.cpp`
-    // these represent the four types of nodal projections
-    static int initial_projection_comp;
-    static int divu_iters_comp;
-    static int pressure_iters_comp;
-    static int regular_timestep_comp;
-
-    // these are defined in `Maestro.cpp`
-    // density and enthalpy edge state prediction
-    static int predict_rhoprime_and_X, predict_rhoX, predict_rho_and_X;
-    static int predict_rhoh, predict_rhohprime, predict_h;
-    static int predict_T_then_rhohprime, predict_T_then_h;
-    static int predict_hprime, predict_Tprime_then_h;
 
     // these are defined in `Maestro.cpp`
     static amrex::IntVect nodal_flag;
@@ -1930,11 +1889,10 @@ class Maestro : public amrex::AmrCore {
     amrex::Vector<amrex::MultiFab> S_cc_old;
     amrex::Vector<amrex::MultiFab> S_cc_new;
 
-    // these MultiFabs are persistant and need to be regridded as well
+    // these MultiFabs are persistent and need to be regridded as well
     amrex::Vector<amrex::MultiFab> gpi;
     amrex::Vector<amrex::MultiFab> dSdt;
     amrex::Vector<amrex::MultiFab> pi;     // nodal
-    amrex::Vector<amrex::MultiFab> intra;  // for sdc
 
     /// this doesn't have to be persistent, but we make it so that we avoid
     /// continually creating and filling temporaries
@@ -2063,6 +2021,11 @@ class Maestro : public amrex::AmrCore {
     /// therefore `flux_reg[0]` and `flux_reg[max_level]` are never actually
     /// used in the reflux operation
     amrex::Vector<std::unique_ptr<amrex::FluxRegister>> flux_reg_s;
+
+    /// Rate of change of pressure at the lower boundary. Used to modify w0
+    /// and p0 in the case of a closed upper boundary (planar).
+    Real p0bdot;
+    Real p0b;
 
     /// flag for writing plotfiles
     enum plotfile_flag {

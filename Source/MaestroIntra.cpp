@@ -1,6 +1,5 @@
 
 #include <Maestro.H>
-#include <Maestro_F.H>
 
 using namespace amrex;
 
@@ -29,7 +28,7 @@ void Maestro::MakeIntraCoeffs(const Vector<MultiFab>& scal1,
 
             ParallelFor(gtbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 // old state first
-                eos_t eos_state;
+                eos_extra_t eos_state;
 
                 eos_state.rho = scalold(i, j, k, Rho);
                 eos_state.T = scalold(i, j, k, Temp);

@@ -3,7 +3,6 @@
  */
 
 #include <Maestro.H>
-#include <Maestro_F.H>
 
 using namespace amrex;
 
@@ -51,7 +50,8 @@ void Maestro::Put1dArrayOnCart(const int lev, const BaseState<Real>& s0,
                                MultiFab& s0_cart,
                                const bool is_input_edge_centered,
                                const bool is_output_a_vector,
-                               const Vector<BCRec>& bcs, const int sbccomp) {
+                               [[maybe_unused]] const Vector<BCRec>& bcs,
+                               [[maybe_unused]] const int sbccomp) {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::Put1dArrayOnCart_lev()", Put1dArrayOnCart);
 
@@ -108,7 +108,7 @@ void Maestro::Put1dArrayOnCart(const int lev, const BaseState<Real>& s0,
                         Real z =
                             prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         int index = cc_to_r(i, j, k);
 
                         Real rfac;
@@ -175,7 +175,7 @@ void Maestro::Put1dArrayOnCart(const int lev, const BaseState<Real>& s0,
                         Real z =
                             prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         int index = cc_to_r(i, j, k);
 
                         Real s0_cart_val = s0_arr(0, index);
@@ -210,7 +210,7 @@ void Maestro::Put1dArrayOnCart(const int lev, const BaseState<Real>& s0,
                         Real z =
                             prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
 
                         auto index = int(radius / drf);
                         Real rfac = (radius - Real(index) * drf) / drf;
@@ -272,7 +272,7 @@ void Maestro::Put1dArrayOnCart(const int lev, const BaseState<Real>& s0,
                         Real z =
                             prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         auto index = int(radius / drf);
 
                         Real s0_cart_val = 0.0;
@@ -355,7 +355,7 @@ Real QuadInterp(const Real x, const Real x0, const Real x1, const Real x2,
 }
 
 void Maestro::Addw0(Vector<std::array<MultiFab, AMREX_SPACEDIM> >& u_edge,
-                    const Vector<std::array<MultiFab, AMREX_SPACEDIM> >& w0mac,
+                    [[maybe_unused]] const Vector<std::array<MultiFab, AMREX_SPACEDIM> >& w0mac,
                     const Real& mult) {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::Addw0()", Addw0);
@@ -423,7 +423,7 @@ void Maestro::Addw0(Vector<std::array<MultiFab, AMREX_SPACEDIM> >& u_edge,
     }
 
     if (finest_level == 0) {
-#ifdef AMREX_USE_CUDA
+#ifdef AMREX_USE_GPU
         // FillBoundary can be non-deterministic on the GPU for non-cell
         // centered data (like u_edge here). If this flag is true, run
         // on the CPU instead
@@ -441,7 +441,7 @@ void Maestro::Addw0(Vector<std::array<MultiFab, AMREX_SPACEDIM> >& u_edge,
             }
         }
 
-#ifdef AMREX_USE_CUDA
+#ifdef AMREX_USE_GPU
         if (deterministic_nodal_solve) {
             // turn GPU back on
             if (launched) Gpu::setLaunchRegion(true);
@@ -513,7 +513,7 @@ void Maestro::MakeW0mac(Vector<std::array<MultiFab, AMREX_SPACEDIM> >& w0mac) {
                     Real y = prob_lo[1] + Real(j) * dx[1] - center_p[1];
                     Real z = prob_lo[2] + Real(k) * dx[2] - center_p[2];
 
-                    Real radius = sqrt(x * x + y * y + z * z);
+                    Real radius = std::sqrt(x * x + y * y + z * z);
                     auto index = int(radius / drf);
                     Real rfac = (radius - Real(index) * drf) / drf;
 
@@ -574,7 +574,7 @@ void Maestro::MakeW0mac(Vector<std::array<MultiFab, AMREX_SPACEDIM> >& w0mac) {
                     Real y = prob_lo[1] + (Real(j) + 0.5) * dx[1] - center_p[1];
                     Real z = prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                    Real radius = sqrt(x * x + y * y + z * z);
+                    Real radius = std::sqrt(x * x + y * y + z * z);
                     auto index = int(radius / drf);
                     Real w0_cart_val;
 
@@ -612,7 +612,7 @@ void Maestro::MakeW0mac(Vector<std::array<MultiFab, AMREX_SPACEDIM> >& w0mac) {
                     Real y = prob_lo[1] + Real(j) * dx[1] - center_p[1];
                     Real z = prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                    Real radius = sqrt(x * x + y * y + z * z);
+                    Real radius = std::sqrt(x * x + y * y + z * z);
                     auto index = int(radius / drf);
                     Real w0_cart_val;
 
@@ -650,7 +650,7 @@ void Maestro::MakeW0mac(Vector<std::array<MultiFab, AMREX_SPACEDIM> >& w0mac) {
                     Real y = prob_lo[1] + (Real(j) + 0.5) * dx[1] - center_p[1];
                     Real z = prob_lo[2] + Real(k) * dx[2] - center_p[2];
 
-                    Real radius = sqrt(x * x + y * y + z * z);
+                    Real radius = std::sqrt(x * x + y * y + z * z);
                     auto index = int(radius / drf);
                     Real w0_cart_val;
 
@@ -789,7 +789,7 @@ void Maestro::MakeS0mac(const BaseState<Real>& s0,
                         Real z =
                             prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         auto index = (int)amrex::Math::round(
                             radius * radius / (dx[0] * dx[0]) - 0.375);
                         // closest radial index to edge-centered point
@@ -831,7 +831,7 @@ void Maestro::MakeS0mac(const BaseState<Real>& s0,
                         Real z =
                             prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         auto index = (int)amrex::Math::round(
                             radius * radius / (dx[1] * dx[1]) - 0.375);
                         // closest radial index to edge-centered point
@@ -873,7 +873,7 @@ void Maestro::MakeS0mac(const BaseState<Real>& s0,
                             prob_lo[1] + (Real(j) + 0.5) * dx[1] - center_p[1];
                         Real z = prob_lo[2] + Real(k) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         auto index = (int)amrex::Math::round(
                             radius * radius / (dx[2] * dx[2]) - 0.375);
                         // closest radial index to edge-centered point
@@ -916,7 +916,7 @@ void Maestro::MakeS0mac(const BaseState<Real>& s0,
                         Real z =
                             prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         auto index = (int)amrex::Math::round(
                             radius * radius / (dx[0] * dx[0]) - 0.375);
                         // closest radial index to edge-centered point
@@ -942,7 +942,7 @@ void Maestro::MakeS0mac(const BaseState<Real>& s0,
                         Real z =
                             prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         auto index = (int)amrex::Math::round(
                             radius * radius / (dx[1] * dx[1]) - 0.375);
                         // closest radial index to edge-centered point
@@ -968,7 +968,7 @@ void Maestro::MakeS0mac(const BaseState<Real>& s0,
                             prob_lo[1] + (Real(j) + 0.5) * dx[1] - center_p[1];
                         Real z = prob_lo[2] + Real(k) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         auto index = (int)amrex::Math::round(
                             radius * radius / (dx[2] * dx[2]) - 0.375);
                         // closest radial index to edge-centered point
@@ -1014,7 +1014,7 @@ void Maestro::MakeS0mac(const BaseState<Real>& s0,
                         Real z =
                             prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         auto index = int(radius / drf);
 
                         if (radius >= r_cc_loc(0, index)) {
@@ -1050,7 +1050,7 @@ void Maestro::MakeS0mac(const BaseState<Real>& s0,
                         Real z =
                             prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         auto index = int(radius / drf);
 
                         if (radius >= r_cc_loc(0, index)) {
@@ -1086,7 +1086,7 @@ void Maestro::MakeS0mac(const BaseState<Real>& s0,
                             prob_lo[1] + (Real(j) + 0.5) * dx[1] - center_p[1];
                         Real z = prob_lo[2] + Real(k) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         auto index = int(radius / drf);
 
                         if (radius >= r_cc_loc(0, index)) {
@@ -1123,7 +1123,7 @@ void Maestro::MakeS0mac(const BaseState<Real>& s0,
                         Real z =
                             prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         auto index = int(radius / drf);
 
                         if (index == 0) {
@@ -1145,7 +1145,7 @@ void Maestro::MakeS0mac(const BaseState<Real>& s0,
                         Real z =
                             prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         auto index = int(radius / drf);
 
                         if (index == 0) {
@@ -1167,7 +1167,7 @@ void Maestro::MakeS0mac(const BaseState<Real>& s0,
                             prob_lo[1] + (Real(j) + 0.5) * dx[1] - center_p[1];
                         Real z = prob_lo[2] + Real(k) * dx[2] - center_p[2];
 
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
                         auto index = int(radius / drf);
 
                         if (index == 0) {
@@ -1220,7 +1220,7 @@ void Maestro::MakeNormal() {
                     Real y = prob_lo[1] + (Real(j) + 0.5) * dx[1] - center_p[1];
                     Real z = prob_lo[2] + (Real(k) + 0.5) * dx[2] - center_p[2];
 
-                    Real inv_radius = 1.0 / sqrt(x * x + y * y + z * z);
+                    Real inv_radius = 1.0 / std::sqrt(x * x + y * y + z * z);
 
                     normal_arr(i, j, k, 0) = x * inv_radius;
                     normal_arr(i, j, k, 1) = y * inv_radius;
@@ -1326,9 +1326,6 @@ void Maestro::MakeCCtoRadii() {
         const auto dx_fine = geom[max_level].CellSizeArray();
 
         iMultiFab& cc_to_r = cell_cc_to_r[lev];
-
-        auto dx_lev = geom[lev].CellSizeArray();
-        auto dx_fine_vec = geom[max_level].CellSizeArray();
 
         // loop over boxes (make sure mfi takes a cell-centered multifab as an argument)
 #ifdef _OPENMP

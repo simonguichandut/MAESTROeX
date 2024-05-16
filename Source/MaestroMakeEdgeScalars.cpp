@@ -1,6 +1,5 @@
 
 #include <Maestro.H>
-#include <Maestro_F.H>
 
 using namespace amrex;
 
@@ -8,7 +7,7 @@ void Maestro::MakeEdgeScal(Vector<MultiFab>& state,
                            Vector<std::array<MultiFab, AMREX_SPACEDIM> >& sedge,
                            Vector<std::array<MultiFab, AMREX_SPACEDIM> >& umac,
                            Vector<MultiFab>& force, const bool is_vel,
-                           const Vector<BCRec>& bcs, int nbccomp,
+                           const Vector<BCRec>& bcs, [[maybe_unused]] int nbccomp,
                            int start_scomp, int start_bccomp, int num_comp,
                            const bool is_conservative) {
     // timer for profiling
@@ -311,7 +310,7 @@ void Maestro::MakeEdgeScalPredictor(
     Array4<Real> const vmac, Array4<Real> const simhx, Array4<Real> const simhy,
     const Box& domainBox, const Vector<BCRec>& bcs,
     const amrex::GpuArray<Real, AMREX_SPACEDIM> dx, int comp, int bccomp,
-    bool is_vel) {
+    bool is_vel) const {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::MakeEdgeScalPredictor()", MakeEdgeScalPredictor);
 
@@ -352,34 +351,34 @@ void Maestro::MakeEdgeScalPredictor(
 
         // impose lo side bc's
         if (i == domlo[0]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 slx(i, j, k) = s(i - 1, j, k, comp);
                 srx(i, j, k) = s(i - 1, j, k, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 0) {
                     srx(i, j, k) = amrex::min(srx(i, j, k), 0.0);
                 }
                 slx(i, j, k) = srx(i, j, k);
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 slx(i, j, k) = srx(i, j, k);
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 slx(i, j, k) = 0.0;
                 srx(i, j, k) = 0.0;
             }
 
             // impose hi side bc's
         } else if (i == domhi[0] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 slx(i, j, k) = s(i, j, k, comp);
                 srx(i, j, k) = s(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 0) {
                     slx(i, j, k) = amrex::max(slx(i, j, k), 0.0);
                 }
                 srx(i, j, k) = slx(i, j, k);
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 srx(i, j, k) = slx(i, j, k);
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 slx(i, j, k) = 0.0;
                 srx(i, j, k) = 0.0;
             }
@@ -411,34 +410,34 @@ void Maestro::MakeEdgeScalPredictor(
 
         // impose lo side bc's
         if (j == domlo[1]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 sly(i, j, k) = s(i, j - 1, k, comp);
                 sry(i, j, k) = s(i, j - 1, k, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 1) {
                     sry(i, j, k) = amrex::min(sry(i, j, k), 0.0);
                 }
                 sly(i, j, k) = sry(i, j, k);
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 sly(i, j, k) = sry(i, j, k);
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 sly(i, j, k) = 0.0;
                 sry(i, j, k) = 0.0;
             }
 
             // impose hi side bc's
         } else if (j == domhi[1] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 sly(i, j, k) = s(i, j, k, comp);
                 sry(i, j, k) = s(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 1) {
                     sly(i, j, k) = amrex::max(sly(i, j, k), 0.0);
                 }
                 sry(i, j, k) = sly(i, j, k);
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 sry(i, j, k) = sly(i, j, k);
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 sly(i, j, k) = 0.0;
                 sry(i, j, k) = 0.0;
             }
@@ -460,7 +459,7 @@ void Maestro::MakeEdgeScalEdges(
     Array4<Real> const Ipf, Array4<Real> const Imf, Array4<Real> const simhx,
     Array4<Real> const simhy, const Box& domainBox, const Vector<BCRec>& bcs,
     const amrex::GpuArray<Real, AMREX_SPACEDIM> dx, int comp, int bccomp,
-    const bool is_vel, const bool is_conservative) {
+    const bool is_vel, const bool is_conservative) const {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::MakeEdgeScalEdges()", MakeEdgeScalEdges);
 
@@ -531,33 +530,33 @@ void Maestro::MakeEdgeScalEdges(
 
         // impose lo side bc's
         if (i == domlo[0]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 sedgex(i, j, k, comp) = s(i - 1, j, k, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 0) {
                     sedgex(i, j, k, comp) = amrex::min(sedgerx, 0.0);
                 } else {
                     sedgex(i, j, k, comp) = sedgerx;
                 }
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 sedgex(i, j, k, comp) = sedgerx;
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 sedgex(i, j, k, comp) = 0.0;
             }
 
             // impose hi side bc's
         } else if (i == domhi[0] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 sedgex(i, j, k, comp) = s(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 0) {
                     sedgex(i, j, k, comp) = amrex::max(sedgelx, 0.0);
                 } else {
                     sedgex(i, j, k, comp) = sedgelx;
                 }
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 sedgex(i, j, k, comp) = sedgelx;
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 sedgex(i, j, k, comp) = 0.0;
             }
         }
@@ -611,33 +610,33 @@ void Maestro::MakeEdgeScalEdges(
 
         // impose lo side bc's
         if (j == domlo[1]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 sedgey(i, j, k, comp) = s(i, j - 1, k, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 1) {
                     sedgey(i, j, k, comp) = amrex::min(sedgery, 0.0);
                 } else {
                     sedgey(i, j, k, comp) = sedgery;
                 }
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 sedgey(i, j, k, comp) = sedgery;
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 sedgey(i, j, k, comp) = 0.0;
             }
 
             // impose hi side bc's
         } else if (j == domhi[1] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 sedgey(i, j, k, comp) = s(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 1) {
                     sedgey(i, j, k, comp) = amrex::max(sedgely, 0.0);
                 } else {
                     sedgey(i, j, k, comp) = sedgely;
                 }
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 sedgey(i, j, k, comp) = sedgely;
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 sedgey(i, j, k, comp) = 0.0;
             }
         }
@@ -649,7 +648,7 @@ void Maestro::MakeEdgeScalEdges(
 void Maestro::MakeDivU(const Box& bx, Array4<Real> const divu,
                        Array4<Real> const umac, Array4<Real> const vmac,
                        Array4<Real> const wmac,
-                       const GpuArray<Real, AMREX_SPACEDIM> dx) {
+                       const GpuArray<Real, AMREX_SPACEDIM> dx) const {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::MakeDivU()", MakeDivU);
 
@@ -668,7 +667,7 @@ void Maestro::MakeEdgeScalPredictor(
     Array4<Real> const vmac, Array4<Real> const wmac, Array4<Real> const simhx,
     Array4<Real> const simhy, Array4<Real> const simhz, const Box& domainBox,
     const Vector<BCRec>& bcs, const amrex::GpuArray<Real, AMREX_SPACEDIM> dx,
-    int comp, int bccomp, bool is_vel) {
+    int comp, int bccomp, bool is_vel) const {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::MakeEdgeScalPredictor()", MakeEdgeScalPredictor);
 
@@ -709,34 +708,34 @@ void Maestro::MakeEdgeScalPredictor(
 
         // impose lo side bc's
         if (i == domlo[0]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 slx(i, j, k) = scal(i - 1, j, k, comp);
                 srx(i, j, k) = scal(i - 1, j, k, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 0) {
                     srx(i, j, k) = amrex::min(srx(i, j, k), 0.0);
                 }
                 slx(i, j, k) = srx(i, j, k);
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 slx(i, j, k) = srx(i, j, k);
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 slx(i, j, k) = 0.0;
                 srx(i, j, k) = 0.0;
             }
 
             // impose hi side bc's
         } else if (i == domhi[0] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 slx(i, j, k) = scal(i, j, k, comp);
                 srx(i, j, k) = scal(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 0) {
                     slx(i, j, k) = amrex::max(slx(i, j, k), 0.0);
                 }
                 srx(i, j, k) = slx(i, j, k);
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 srx(i, j, k) = slx(i, j, k);
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 slx(i, j, k) = 0.0;
                 srx(i, j, k) = 0.0;
             }
@@ -767,33 +766,33 @@ void Maestro::MakeEdgeScalPredictor(
 
         // impose lo side bc's
         if (j == domlo[1]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 sly(i, j, k) = scal(i, j - 1, k, comp);
                 sry(i, j, k) = scal(i, j - 1, k, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 1) {
                     sry(i, j, k) = amrex::min(sry(i, j, k), 0.0);
                 }
                 sly(i, j, k) = sry(i, j, k);
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 sly(i, j, k) = sry(i, j, k);
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 sly(i, j, k) = 0.0;
                 sry(i, j, k) = 0.0;
             }
             // impose hi side bc's
         } else if (j == domhi[1] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 sly(i, j, k) = scal(i, j, k, comp);
                 sry(i, j, k) = scal(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 1) {
                     sly(i, j, k) = amrex::max(sly(i, j, k), 0.0);
                 }
                 sry(i, j, k) = sly(i, j, k);
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 sry(i, j, k) = sly(i, j, k);
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 sly(i, j, k) = 0.0;
                 sry(i, j, k) = 0.0;
             }
@@ -824,33 +823,33 @@ void Maestro::MakeEdgeScalPredictor(
 
         // impose lo side bc's
         if (k == domlo[2]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 slz(i, j, k) = scal(i, j, k - 1, comp);
                 srz(i, j, k) = scal(i, j, k - 1, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 2) {
                     srz(i, j, k) = amrex::min(srz(i, j, k), 0.0);
                 }
                 slz(i, j, k) = srz(i, j, k);
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 slz(i, j, k) = srz(i, j, k);
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 slz(i, j, k) = 0.0;
                 srz(i, j, k) = 0.0;
             }
             // impose hi side bc's
         } else if (k == domhi[2] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 slz(i, j, k) = scal(i, j, k, comp);
                 srz(i, j, k) = scal(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 2) {
                     slz(i, j, k) = amrex::max(slz(i, j, k), 0.0);
                 }
                 srz(i, j, k) = slz(i, j, k);
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 srz(i, j, k) = slz(i, j, k);
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 slz(i, j, k) = 0.0;
                 srz(i, j, k) = 0.0;
             }
@@ -874,7 +873,7 @@ void Maestro::MakeEdgeScalTransverse(
     Array4<Real> const simhyz, Array4<Real> const simhzx,
     Array4<Real> const simhzy, const Box& domainBox, const Vector<BCRec>& bcs,
     const amrex::GpuArray<Real, AMREX_SPACEDIM> dx, int comp, int bccomp,
-    const bool is_vel, const bool is_conservative) {
+    const bool is_vel, const bool is_conservative) const {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::MakeEdgeScalTransverse()", MakeEdgeScalTransverse);
 
@@ -932,34 +931,34 @@ void Maestro::MakeEdgeScalTransverse(
 
         // impose lo side bc's
         if (i == domlo[0]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 slxy = scal(i - 1, j, k, comp);
                 srxy = scal(i - 1, j, k, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 0) {
                     srxy = amrex::min(srxy, 0.0);
                 }
                 slxy = srxy;
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 slxy = srxy;
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 slxy = 0.0;
                 srxy = 0.0;
             }
 
             // impose hi side bc's
         } else if (i == domhi[0] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 slxy = scal(i, j, k, comp);
                 srxy = scal(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 0) {
                     slxy = amrex::max(slxy, 0.0);
                 }
                 srxy = slxy;
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 srxy = slxy;
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 slxy = 0.0;
                 srxy = 0.0;
             }
@@ -1008,34 +1007,34 @@ void Maestro::MakeEdgeScalTransverse(
 
         // impose lo side bc's
         if (i == domlo[0]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 slxz = scal(i - 1, j, k, comp);
                 srxz = scal(i - 1, j, k, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 0) {
                     srxz = amrex::min(srxz, 0.0);
                 }
                 slxz = srxz;
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 slxz = srxz;
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 slxz = 0.0;
                 srxz = 0.0;
             }
 
             // impose hi side bc's
         } else if (i == domhi[0] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 slxz = scal(i, j, k, comp);
                 srxz = scal(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 0) {
                     slxz = amrex::max(slxz, 0.0);
                 }
                 srxz = slxz;
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 srxz = slxz;
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 slxz = 0.0;
                 srxz = 0.0;
             }
@@ -1087,34 +1086,34 @@ void Maestro::MakeEdgeScalTransverse(
 
         // impose lo side bc's
         if (j == domlo[1]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 slyx = scal(i, j - 1, k, comp);
                 sryx = scal(i, j - 1, k, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 1) {
                     sryx = amrex::min(sryx, 0.0);
                 }
                 slyx = sryx;
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 slyx = sryx;
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 slyx = 0.0;
                 sryx = 0.0;
             }
 
             // impose hi side bc's
         } else if (j == domhi[1] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 slyx = scal(i, j, k, comp);
                 sryx = scal(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 1) {
                     slyx = amrex::max(slyx, 0.0);
                 }
                 sryx = slyx;
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 sryx = slyx;
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 slyx = 0.0;
                 sryx = 0.0;
             }
@@ -1163,34 +1162,34 @@ void Maestro::MakeEdgeScalTransverse(
 
         // impose lo side bc's
         if (j == domlo[1]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 slyz = scal(i, j - 1, k, comp);
                 sryz = scal(i, j - 1, k, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 1) {
                     sryz = amrex::min(sryz, 0.0);
                 }
                 slyz = sryz;
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 slyz = sryz;
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 slyz = 0.0;
                 sryz = 0.0;
             }
 
             // impose hi side bc's
         } else if (j == domhi[1] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 slyz = scal(i, j, k, comp);
                 sryz = scal(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 1) {
                     slyz = amrex::max(slyz, 0.0);
                 }
                 sryz = slyz;
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 sryz = slyz;
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 slyz = 0.0;
                 sryz = 0.0;
             }
@@ -1242,34 +1241,34 @@ void Maestro::MakeEdgeScalTransverse(
 
         // impose lo side bc's
         if (k == domlo[2]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 slzx = scal(i, j, k - 1, comp);
                 srzx = scal(i, j, k - 1, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 2) {
                     srzx = amrex::min(srzx, 0.0);
                 }
                 slzx = srzx;
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 slzx = srzx;
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 slzx = 0.0;
                 srzx = 0.0;
             }
 
             // impose hi side bc's
         } else if (k == domhi[2] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 slzx = scal(i, j, k, comp);
                 srzx = scal(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 2) {
                     slzx = amrex::max(slzx, 0.0);
                 }
                 srzx = slzx;
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 srzx = slzx;
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 slzx = 0.0;
                 srzx = 0.0;
             }
@@ -1318,34 +1317,34 @@ void Maestro::MakeEdgeScalTransverse(
 
         // impose lo side bc's
         if (k == domlo[2]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 slzy = scal(i, j, k - 1, comp);
                 srzy = scal(i, j, k - 1, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 2) {
                     srzy = amrex::min(srzy, 0.0);
                 }
                 slzy = srzy;
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 slzy = srzy;
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 slzy = 0.0;
                 srzy = 0.0;
             }
 
             // impose hi side bc's
         } else if (k == domhi[2] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 slzy = scal(i, j, k, comp);
                 srzy = scal(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 2) {
                     slzy = amrex::max(slzy, 0.0);
                 }
                 srzy = slzy;
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 srzy = slzy;
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 slzy = 0.0;
                 srzy = 0.0;
             }
@@ -1370,7 +1369,7 @@ void Maestro::MakeEdgeScalEdges(
     Array4<Real> const simhyx, Array4<Real> const simhyz,
     Array4<Real> const simhzx, Array4<Real> const simhzy, const Box& domainBox,
     const Vector<BCRec>& bcs, const amrex::GpuArray<Real, AMREX_SPACEDIM> dx,
-    int comp, int bccomp, const bool is_vel, const bool is_conservative) {
+    int comp, int bccomp, const bool is_vel, const bool is_conservative) const {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::MakeEdgeScalEdges()", MakeEdgeScalEdges);
 
@@ -1454,33 +1453,33 @@ void Maestro::MakeEdgeScalEdges(
 
         // impose lo side bc's
         if (i == domlo[0]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 sedgex(i, j, k, comp) = scal(i - 1, j, k, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 0) {
                     sedgex(i, j, k, comp) = amrex::min(sedgerx, 0.0);
                 } else {
                     sedgex(i, j, k, comp) = sedgerx;
                 }
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 sedgex(i, j, k, comp) = sedgerx;
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 sedgex(i, j, k, comp) = 0.0;
             }
 
             // impose hi side bc's
         } else if (i == domhi[0] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 sedgex(i, j, k, comp) = scal(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 0) {
                     sedgex(i, j, k, comp) = amrex::max(sedgelx, 0.0);
                 } else {
                     sedgex(i, j, k, comp) = sedgelx;
                 }
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 sedgex(i, j, k, comp) = sedgelx;
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 sedgex(i, j, k, comp) = 0.0;
             }
         }
@@ -1544,33 +1543,33 @@ void Maestro::MakeEdgeScalEdges(
 
         // impose lo side bc's
         if (j == domlo[1]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 sedgey(i, j, k, comp) = scal(i, j - 1, k, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 1) {
                     sedgey(i, j, k, comp) = amrex::min(sedgery, 0.0);
                 } else {
                     sedgey(i, j, k, comp) = sedgery;
                 }
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 sedgey(i, j, k, comp) = sedgery;
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 sedgey(i, j, k, comp) = 0.0;
             }
 
             // impose hi side bc's
         } else if (j == domhi[1] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 sedgey(i, j, k, comp) = scal(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 1) {
                     sedgey(i, j, k, comp) = amrex::max(sedgely, 0.0);
                 } else {
                     sedgey(i, j, k, comp) = sedgely;
                 }
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 sedgey(i, j, k, comp) = sedgely;
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 sedgey(i, j, k, comp) = 0.0;
             }
         }
@@ -1634,33 +1633,33 @@ void Maestro::MakeEdgeScalEdges(
 
         // impose lo side bc's
         if (k == domlo[2]) {
-            if (bclo == EXT_DIR) {
+            if (bclo == amrex::BCType::ext_dir) {
                 sedgez(i, j, k, comp) = scal(i, j, k - 1, comp);
-            } else if (bclo == FOEXTRAP || bclo == HOEXTRAP) {
+            } else if (bclo == amrex::BCType::foextrap || bclo == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 2) {
                     sedgez(i, j, k, comp) = amrex::min(sedgerz, 0.0);
                 } else {
                     sedgez(i, j, k, comp) = sedgerz;
                 }
-            } else if (bclo == REFLECT_EVEN) {
+            } else if (bclo == amrex::BCType::reflect_even) {
                 sedgez(i, j, k, comp) = sedgerz;
-            } else if (bclo == REFLECT_ODD) {
+            } else if (bclo == amrex::BCType::reflect_odd) {
                 sedgez(i, j, k, comp) = 0.0;
             }
 
             // impose hi side bc's
         } else if (k == domhi[2] + 1) {
-            if (bchi == EXT_DIR) {
+            if (bchi == amrex::BCType::ext_dir) {
                 sedgez(i, j, k, comp) = scal(i, j, k, comp);
-            } else if (bchi == FOEXTRAP || bchi == HOEXTRAP) {
+            } else if (bchi == amrex::BCType::foextrap || bchi == amrex::BCType::hoextrap) {
                 if (is_vel && comp == 2) {
                     sedgez(i, j, k, comp) = amrex::max(sedgelz, 0.0);
                 } else {
                     sedgez(i, j, k, comp) = sedgelz;
                 }
-            } else if (bchi == REFLECT_EVEN) {
+            } else if (bchi == amrex::BCType::reflect_even) {
                 sedgez(i, j, k, comp) = sedgelz;
-            } else if (bchi == REFLECT_ODD) {
+            } else if (bchi == amrex::BCType::reflect_odd) {
                 sedgez(i, j, k, comp) = 0.0;
             }
         }

@@ -2,6 +2,7 @@
 #include <Maestro.H>
 
 using namespace amrex;
+using namespace problem_rp;
 
 // advance solution to final time
 void Maestro::Evolve() {
@@ -102,16 +103,16 @@ void Maestro::Evolve() {
 
         // AdvanceTimeStep
         {
-            // thermal is the forcing for rhoh or temperature
-            MakeThermalCoeffs(sold, Tcoeff1, hcoeff1, Xkcoeff1, pcoeff1);
 
             // on the first step, just copy coeffs for the time centering
-            if (istep == 1) {
+            if (istep == start_step) {
+
+            // compute diffusion coefficients and hold constant over simulation
+            MakeThermalCoeffs(sold, Tcoeff1, hcoeff1, Xkcoeff1, pcoeff1);
                 for (int lev = 0; lev <= finest_level; ++lev) {
                     MultiFab::Copy(Tcoeff2[lev], Tcoeff1[lev], 0, 0, 1, 1);
                     MultiFab::Copy(hcoeff2[lev], hcoeff1[lev], 0, 0, 1, 1);
-                    MultiFab::Copy(Xkcoeff2[lev], Xkcoeff1[lev], 0, 0, NumSpec,
-                                   1);
+                    MultiFab::Copy(Xkcoeff2[lev], Xkcoeff1[lev], 0, 0, NumSpec, 1);
                     MultiFab::Copy(pcoeff2[lev], pcoeff1[lev], 0, 0, 1, 1);
                 }
             }
@@ -159,7 +160,7 @@ void Maestro::Evolve() {
                         ambient_h_loc;
                 });
 
-                // make_analytic_solution(ARLIM_3D(tileBox.loVect()), ARLIM_3D(tileBox.hiVect()), BL_TO_FORTRAN_3D(analytic_mf[mfi]), ZFILL(dx), t_new);
+                // make_analytic_solution(AMREX_ARLIM_3D(tileBox.loVect()), AMREX_ARLIM_3D(tileBox.hiVect()), BL_TO_FORTRAN_3D(analytic_mf[mfi]), AMREX_ZFILL(dx), t_new);
             }
         }
 
@@ -194,11 +195,11 @@ void Maestro::Evolve() {
 
         // fill the mfs for the next timestep by switching pointers
         for (int lev = 0; lev <= finest_level; ++lev) {
-            std::swap(sold[lev], snew[lev]);
-            std::swap(Tcoeff2[lev], Tcoeff1[lev]);
-            std::swap(hcoeff2[lev], hcoeff1[lev]);
-            std::swap(Xkcoeff2[lev], Xkcoeff1[lev]);
-            std::swap(pcoeff2[lev], pcoeff1[lev]);
+         MultiFab::Copy(sold[lev], snew[lev], 0, 0, Nscal, ng_s);
         }
     }
+
+    WritePlotFile(istep, t_new, dt, dummy, dummy, dummy, dummy, sold, analytic,
+                  error);
+
 }

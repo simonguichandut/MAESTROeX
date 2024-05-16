@@ -1,8 +1,7 @@
 
 #include <Maestro.H>
-#include <Maestro_F.H>
 
-#ifdef AMREX_USE_CUDA
+#ifdef AMREX_USE_GPU
 #include <AMReX_Arena.H>
 #include <cuda_runtime_api.h>
 #endif
@@ -189,9 +188,11 @@ void Maestro::EstDt() {
                     if (spdy > eps) {
                         dt_temp = amrex::min(dt_temp, dx[1] / spdy);
                     }
+#if AMREX_SPACEDIM == 3
                     if (spdz > eps) {
                         dt_temp = amrex::min(dt_temp, dx[2] / spdz);
                     }
+#endif
                     if (spdr > eps) {
                         dt_temp =
                             amrex::min(dt_temp, dx[AMREX_SPACEDIM - 1] / spdr);
@@ -247,7 +248,7 @@ void Maestro::EstDt() {
                                 (p0_arr(i, j + 1, k) - p0_arr(i, j - 1, k)) /
                                 dx[1];
                         }
-#else 
+#else
                         if (k == 0) {
                             gradp0 = (p0_arr(i,j,k+1) - p0_arr(i,j,k)) / dx[2];
                         } else if (k == nr_lev-1) {
@@ -614,15 +615,14 @@ void Maestro::FirstDt() {
                 const Real eps = 1.e-8;
                 const Real rho_min = 1.e-20;
 
-                FArrayBox spd(tileBox);
-                Elixir e_s = spd.elixir();
+                FArrayBox spd(tileBox, 1, The_Async_Arena());
 
                 const Array4<Real> spd_arr = spd.array();
 
                 spd.setVal<RunOn::Device>(0.0, tileBox, 0, 1);
 
                 ParallelFor(tileBox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    eos_t eos_state;
+                    eos_rep_t eos_state;
 
                     // compute the sound speed from rho and temp
                     eos_state.rho = scal_arr(i, j, k, Rho);
@@ -739,7 +739,7 @@ void Maestro::FirstDt() {
                                           p0_arr(i, j - 1, k)) /
                                          dx[1];
                             }
-#else 
+#else
                             if (k == 0) {
                                 gradp0 = (p0_arr(i,j,k+1) - p0_arr(i,j,k)) / dx[2];
                             } else if (k == nr_lev-1) {
@@ -779,12 +779,13 @@ void Maestro::FirstDt() {
                             Real denom = S_cc_arr(i, j, k) - gp_dot_u;
 
                             if (denom > 0.0 && scal_arr(i, j, k, Rho) > 0.0) {
-                                if (rho_min / scal_arr(i, j, k, Rho) < 1.0)
+                                if (rho_min / scal_arr(i, j, k, Rho) < 1.0) {
                                     tmp_arr(i, j, k) =
                                         0.4 *
                                         (1.0 -
                                          rho_min / scal_arr(i, j, k, Rho)) /
                                         denom;
+                                }
                             }
                         });
                         dt_divu = tmp[mfi].min<RunOn::Device>(tileBox, 0);
@@ -853,7 +854,7 @@ void Maestro::FirstDt() {
 }
 
 void Maestro::EstDt_Divu(BaseState<Real>& gp0, const BaseState<Real>& p0,
-                         const BaseState<Real>& gamma1bar) {
+                         const BaseState<Real>& gamma1bar) const {
     auto gp0_arr = gp0.array();
     const auto p0_arr = p0.const_array();
     const auto gamma1bar_arr = gamma1bar.const_array();

@@ -1,6 +1,5 @@
 
 #include <Maestro.H>
-#include <Maestro_F.H>
 
 using namespace amrex;
 
@@ -209,6 +208,9 @@ void Maestro::AdvanceTimeStepAverage(bool is_initIter) {
     // initialize to zero
     Sbar.setVal(0.);
     w0.setVal(0.);
+    for (int lev = 0; lev <= finest_level; ++lev) {
+        w0_cart[lev].setVal(0.);
+    }
 
     // set dummy variables to zero
     w0_force_dummy.setVal(0.);
@@ -466,8 +468,10 @@ void Maestro::AdvanceTimeStepAverage(bool is_initIter) {
         // compute the new etarho
         if (!spherical) {
             MakeEtarhoPlanar(s1, s2, umac);
+#if AMREX_SPACEDIM == 3
         } else {
             MakeEtarhoSphr(s1, s2, umac, w0mac_dummy);
+#endif
         }
     }
 
@@ -748,8 +752,10 @@ void Maestro::AdvanceTimeStepAverage(bool is_initIter) {
         // compute the new etarho
         if (!spherical) {
             MakeEtarhoPlanar(s1, s2, umac);
+#if AMREX_SPACEDIM == 3
         } else {
             MakeEtarhoSphr(s1, s2, umac, w0mac_dummy);
+#endif
         }
     }
 
@@ -954,12 +960,6 @@ void Maestro::AdvanceTimeStepAverage(bool is_initIter) {
         }
         AverageDown(unew, 0, AMREX_SPACEDIM);
         FillPatch(t_new, unew, unew, unew, 0, 0, AMREX_SPACEDIM, 0, bcs_u, 1);
-
-        // reset w0
-        w0.setVal(0.);
-        for (int lev = 0; lev <= finest_level; ++lev) {
-            w0_cart[lev].setVal(0.);
-        }
     }
 
     beta0_nm1.copy(0.5 * (beta0_old + beta0_new));

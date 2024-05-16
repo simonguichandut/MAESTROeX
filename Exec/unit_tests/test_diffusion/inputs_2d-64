@@ -20,8 +20,9 @@ maestro.init_divu_iter        = 0
 maestro.init_iter             = 0
 
 # PLOTFILES
-maestro.plot_base_name  = plt    # root name of plot file
+maestro.plot_base_name  = diffuse_64_    # root name of plot file
 maestro.plot_int   = -1   # number of timesteps between plot files
+maestro.plot_deltat = 0.02
 
 # CHECKPOINT
 maestro.check_base_name = chk
@@ -63,23 +64,19 @@ maestro.anelastic_cutoff_density = 3.e6
 maestro.base_cutoff_density = 3.e6
 
 
-&probin
+conductivity.const_conductivity = 1.e7
 
- const_conductivity = 1.d7
+problem.dt_mult_factor = 1.0e0
 
- dt_mult_factor = 1.0d0
+problem.outputfile = "norms.out"
 
- outputfile = "norms.out"
+problem.t0 = 5.e-2
 
- t0 = 1.0d-1
+problem.peak_h = 1.0e1
+problem.ambient_h = 1.0e0
 
- peak_h = 1.0d1
- ambient_h = 1.0d0
+problem.ambient_dens = 1.0e0
 
- ambient_dens = 1.0d0
-
- ambient_he4 = 0.5d0
- ambient_c12 = 0.25d0
- ambient_fe56 = 0.25d0
-
-/
+problem.ambient_he4 = 0.5e0
+problem.ambient_c12 = 0.25e0
+problem.ambient_fe56 = 0.25e0

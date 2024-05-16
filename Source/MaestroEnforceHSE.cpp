@@ -1,10 +1,9 @@
 #include <Maestro.H>
-#include <Maestro_F.H>
 
 using namespace amrex;
 
 void Maestro::EnforceHSE(const BaseState<Real>& rho0_s, BaseState<Real>& p0_s,
-                         const BaseState<Real>& grav_cell_s) {
+                         const BaseState<Real>& grav_cell_s) const {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::EnforceHSE()", EnforceHSE);
 
@@ -184,7 +183,7 @@ void Maestro::EnforceHSE(const BaseState<Real>& rho0_s, BaseState<Real>& p0_s,
                 if (r_end_coord(n, i) != base_geom.nr(n) - 1) {
                     for (auto l = n - 1; l >= 0; --l) {
                         for (auto r = (int)amrex::Math::round(
-                                 (r_end_coord(n, i) + 1) / pow(2, n - l));
+                                 (r_end_coord(n, i) + 1) / std::pow(2, n - l));
                              r <= base_geom.nr(l) - 1; ++r) {
                             p0(l, r) -= offset;
                         }
@@ -194,10 +193,17 @@ void Maestro::EnforceHSE(const BaseState<Real>& rho0_s, BaseState<Real>& p0_s,
         }      // end loop over levels
     }          // spherical
 
-    // now compare pressure in the last cell and offset to make sure we
-    // are integrating "from the top"
+    // if the top is closed in planar geometry, offset the pressure to
+    // make it consistent with that boundary condition
+    //
+    // otherwise, now compare pressure in the last cell and offset to
+    // make sure we are integrating "from the top"
     // we use the coarsest level as the reference point
-    offset = p0(0, base_geom.nr(0) - 1) - p0old(0, base_geom.nr(0) - 1);
+    if (add_pb && !spherical) {
+        offset = -1.0 * p0b;
+    } else {
+        offset = p0(0, base_geom.nr(0) - 1) - p0old(0, base_geom.nr(0) - 1);
+    }
 
     // offset level 0
     for (auto r = 0; r < base_geom.nr_fine; ++r) {

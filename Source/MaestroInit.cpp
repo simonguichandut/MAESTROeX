@@ -1,8 +1,7 @@
 
 #include <AMReX_VisMF.H>
 #include <Maestro.H>
-#include <Maestro_F.H>
-#include <model_parser_F.H>
+
 using namespace amrex;
 
 // initialize AMR data
@@ -47,8 +46,6 @@ void Maestro::Init() {
     } else {
         Print() << "Initializing from checkpoint " << restart_file << std::endl;
 
-        input_model.ReadFile(model_file);
-
         // read in checkpoint file
         // this builds (defines) and fills the following MultiFabs:
         //
@@ -58,6 +55,9 @@ void Maestro::Init() {
         //
         // rho0_new, p0_new, gamma1bar_new, rhoh0_new, beta0_new, psi, tempbar, etarho_cc, tempbar_init
         ReadCheckPoint();
+
+        // initialize any inlet BC parameters
+        SetInletBCs();
 
         // build (define) the following MultiFabs (that weren't read in from checkpoint):
         // snew, unew, S_cc_new, w0_cart, rhcc_for_nodalproj, normal, pi
@@ -73,10 +73,6 @@ void Maestro::Init() {
             }
             pi[lev].define(convert(grids[lev], nodal_flag), dmap[lev], 1,
                            0);  // nodal
-#ifdef SDC
-            intra[lev].define(grids[lev], dmap[lev], Nscal, 0);  // for sdc
-            intra[lev].setVal(0.);
-#endif
         }
 
         for (int lev = 0; lev <= finest_level; ++lev) {
@@ -103,7 +99,20 @@ void Maestro::Init() {
         BaseState<int> tag_array_b(tag_array, base_geom.max_radial_level + 1,
                                    base_geom.nr_fine);
         base_geom.InitMultiLevel(finest_level, tag_array_b.array());
-        base_geom.ComputeCutoffCoords(rho0_old.array());
+
+        // average down data and fill ghost cells
+        AverageDown(sold, 0, Nscal);
+        FillPatch(t_old, sold, sold, sold, 0, 0, Nscal, 0, bcs_s);
+        AverageDown(uold, 0, AMREX_SPACEDIM);
+        FillPatch(t_old, uold, uold, uold, 0, 0, AMREX_SPACEDIM, 0, bcs_u, 1);
+
+        if (do_smallscale) {
+            Average(sold, rho0_old, Rho);
+            base_geom.ComputeCutoffCoords(rho0_old.array());
+            rho0_old.setVal(0.);
+        } else {
+            base_geom.ComputeCutoffCoords(rho0_old.array());
+        }
     }
 
 #if (AMREX_SPACEDIM == 3)
@@ -158,11 +167,7 @@ void Maestro::Init() {
         if (init_divu_iter > 0) {
             for (int i = 1; i <= init_divu_iter; ++i) {
                 Print() << "Doing initial divu iteration #" << i << std::endl;
-#ifdef SDC
-                DivuIterSDC(i);
-#else
                 DivuIter(i);
-#endif
             }
 
             if (plot_int > 0 || plot_deltat > 0) {
@@ -315,7 +320,7 @@ void Maestro::InitData() {
 // and initialize finer levels.  This function creates a new fine
 // level that did not exist before by interpolating from the coarser level
 // overrides the pure virtual function in AmrCore
-void Maestro::MakeNewLevelFromScratch(int lev, Real time, const BoxArray& ba,
+void Maestro::MakeNewLevelFromScratch(int lev, [[maybe_unused]] Real time, const BoxArray& ba,
                                       const DistributionMapping& dm) {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::MakeNewLevelFromScratch()",
@@ -333,7 +338,6 @@ void Maestro::MakeNewLevelFromScratch(int lev, Real time, const BoxArray& ba,
     rhcc_for_nodalproj[lev].define(ba, dm, 1, 1);
 
     pi[lev].define(convert(ba, nodal_flag), dm, 1, 0);  // nodal
-    intra[lev].define(ba, dm, Nscal, 0);                // for sdc
 
     sold[lev].setVal(0.);
     snew[lev].setVal(0.);
@@ -346,7 +350,6 @@ void Maestro::MakeNewLevelFromScratch(int lev, Real time, const BoxArray& ba,
     w0_cart[lev].setVal(0.);
     rhcc_for_nodalproj[lev].setVal(0.);
     pi[lev].setVal(0.);
-    intra[lev].setVal(0.);
 
     if (spherical) {
         normal[lev].define(ba, dm, 3, 1);
@@ -460,11 +463,7 @@ void Maestro::InitProj() {
                          delta_gamma1_term);
 
     // perform a nodal projection
-#ifndef SDC
     NodalProj(initial_projection_comp, rhcc_for_nodalproj);
-#else
-    NodalProj(initial_projection_comp, rhcc_for_nodalproj, false);
-#endif
 }
 
 void Maestro::DivuIter(int istep_divu_iter) {
@@ -602,139 +601,6 @@ void Maestro::DivuIter(int istep_divu_iter) {
     }
 }
 
-// SDC
-void Maestro::DivuIterSDC(int istep_divu_iter) {
-    // timer for profiling
-    BL_PROFILE_VAR("Maestro::DivuIterSDC()", DivuIterSDC);
-
-    Vector<MultiFab> stemp(finest_level + 1);
-    Vector<MultiFab> rho_Hext(finest_level + 1);
-    Vector<MultiFab> rho_omegadot(finest_level + 1);
-    Vector<MultiFab> rho_Hnuc(finest_level + 1);
-    Vector<MultiFab> thermal(finest_level + 1);
-    Vector<MultiFab> rhohalf(finest_level + 1);
-    Vector<MultiFab> Tcoeff(finest_level + 1);
-    Vector<MultiFab> hcoeff(finest_level + 1);
-    Vector<MultiFab> Xkcoeff(finest_level + 1);
-    Vector<MultiFab> pcoeff(finest_level + 1);
-    Vector<MultiFab> delta_gamma1(finest_level + 1);
-    Vector<MultiFab> delta_gamma1_term(finest_level + 1);
-    Vector<MultiFab> sdc_source(finest_level + 1);
-
-    BaseState<Real> Sbar(base_geom.max_radial_level + 1, base_geom.nr_fine);
-    BaseState<Real> w0_force(base_geom.max_radial_level + 1, base_geom.nr_fine);
-    BaseState<Real> p0_minus_pthermbar(base_geom.max_radial_level + 1,
-                                       base_geom.nr_fine);
-    BaseState<Real> delta_gamma1_termbar(base_geom.max_radial_level + 1,
-                                         base_geom.nr_fine);
-
-    Sbar.setVal(0.);
-    etarho_ec.setVal(0.0);
-    w0_force.setVal(0.0);
-    psi.setVal(0.0);
-    etarho_cc.setVal(0.0);
-    p0_minus_pthermbar.setVal(0.);
-    delta_gamma1_termbar.setVal(0.);
-
-    for (int lev = 0; lev <= finest_level; ++lev) {
-        stemp[lev].define(grids[lev], dmap[lev], Nscal, 0);
-        rho_Hext[lev].define(grids[lev], dmap[lev], 1, 0);
-        rho_omegadot[lev].define(grids[lev], dmap[lev], NumSpec, 0);
-        rho_Hnuc[lev].define(grids[lev], dmap[lev], 1, 0);
-        thermal[lev].define(grids[lev], dmap[lev], 1, 0);
-        rhohalf[lev].define(grids[lev], dmap[lev], 1, 1);
-        Tcoeff[lev].define(grids[lev], dmap[lev], 1, 1);
-        hcoeff[lev].define(grids[lev], dmap[lev], 1, 1);
-        Xkcoeff[lev].define(grids[lev], dmap[lev], NumSpec, 1);
-        pcoeff[lev].define(grids[lev], dmap[lev], 1, 1);
-        delta_gamma1[lev].define(grids[lev], dmap[lev], 1, 1);
-        delta_gamma1_term[lev].define(grids[lev], dmap[lev], 1, 1);
-        sdc_source[lev].define(grids[lev], dmap[lev], Nscal, 0);
-
-        // divu_iters do not use density weighting
-        rhohalf[lev].setVal(1.);
-        sdc_source[lev].setVal(0.);
-    }
-
-    ReactSDC(sold, stemp, rho_Hext, p0_old, 0.5 * dt, t_old, sdc_source);
-
-    if (use_thermal_diffusion) {
-        MakeThermalCoeffs(sold, Tcoeff, hcoeff, Xkcoeff, pcoeff);
-
-        MakeExplicitThermal(thermal, sold, Tcoeff, hcoeff, Xkcoeff, pcoeff,
-                            p0_old, temp_diffusion_formulation);
-    } else {
-        for (int lev = 0; lev <= finest_level; ++lev) {
-            thermal[lev].setVal(0.);
-        }
-    }
-
-    MakeReactionRates(rho_omegadot, rho_Hnuc, sold);
-
-    // compute S at cell-centers
-    Make_S_cc(S_cc_old, delta_gamma1_term, delta_gamma1, sold, uold,
-              rho_omegadot, rho_Hnuc, rho_Hext, thermal, p0_old, gamma1bar_old,
-              delta_gamma1_termbar);
-
-    // NOTE: not sure if valid for use_exact_base_state
-    if (evolve_base_state) {
-        if ((use_exact_base_state || average_base_state) &&
-            use_delta_gamma1_term) {
-            Sbar += delta_gamma1_termbar;
-        } else {
-            Average(S_cc_old, Sbar, 0);
-
-            // compute Sbar = Sbar + delta_gamma1_termbar
-            if (use_delta_gamma1_term) {
-                Sbar += delta_gamma1_termbar;
-            }
-
-            const auto is_predictor = true;
-            Makew0(w0, w0_force, Sbar, rho0_old, rho0_old, p0_old, p0_old,
-                   gamma1bar_old, gamma1bar_old, p0_minus_pthermbar, dt, dt,
-                   is_predictor);
-        }
-    }
-
-    // make the nodal rhs for projection beta0*(S_cc-Sbar) + beta0*delta_chi
-    MakeRHCCforNodalProj(rhcc_for_nodalproj, S_cc_old, Sbar, beta0_old,
-                         delta_gamma1_term);
-
-    // perform a nodal projection
-    NodalProj(divu_iters_comp, rhcc_for_nodalproj, istep_divu_iter, false);
-
-    Real dt_hold = dt;
-
-    // compute new time step
-    EstDt();
-
-    if (maestro_verbose > 0) {
-        Print() << "Call to estdt at end of istep_divu_iter = "
-                << istep_divu_iter << " gives dt = " << dt << std::endl;
-    }
-
-    dt *= init_shrink;
-    if (maestro_verbose > 0) {
-        Print() << "Multiplying dt by init_shrink; dt = " << dt << std::endl;
-    }
-
-    if (dt > dt_hold) {
-        if (maestro_verbose > 0) {
-            Print() << "Ignoring this new dt since it's larger than the "
-                       "previous dt = "
-                    << dt_hold << std::endl;
-        }
-        dt = amrex::min(dt_hold, dt);
-    }
-
-    if (fixed_dt != -1.0) {
-        // fixed dt
-        dt = fixed_dt;
-        if (maestro_verbose > 0) {
-            Print() << "Setting fixed dt = " << dt << std::endl;
-        }
-    }
-}
 
 void Maestro::InitIter() {
     // timer for profiling

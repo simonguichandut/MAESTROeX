@@ -1,5 +1,10 @@
 MAESTROEX_HOME ?= /home/fanduomi/CCSE/MAESTROeX
 
+# clang-tidy support via AMReX
+CLANG_TIDY_CONFIG_FILE := $(MAESTROEX_HOME)/.clang-tidy
+# space-separated list of paths to skip when running clang-tidy
+CLANG_TIDY_IGNORE_SOURCES = $(AMREX_HOME)/Src $(MICROPHYSICS_HOME)
+
 TOP := $(MAESTROEX_HOME)
 
 # Microphysics is a git submodule of MAESTROeX. By default
@@ -17,6 +22,9 @@ MICROPHYSICS_HOME ?= $(TOP)/external/Microphysics
 # AMREX_HOME.
 
 AMREX_HOME ?= $(TOP)/external/amrex
+
+# disable AMReX Fortran by default
+BL_NO_FORT ?= TRUE
 
 # Require C++17
 CXXSTD := c++17
@@ -46,12 +54,15 @@ ifeq ($(USE_SDC), TRUE)
   USERSuffix = .SDC
 endif
 
-ifeq ($(USE_CUDA),TRUE)
-  USE_GPU_PRAGMA = TRUE
-  DEFINES += -DCUDA
-endif
-
 include $(AMREX_HOME)/Tools/GNUMake/Make.defs
+
+ifeq ($(USE_GPU),TRUE)
+  # We don't currently support host-side OpenMP being enabled
+  # when using GPUs. Throw an error to prevent this case.
+  ifeq ($(USE_OMP),TRUE)
+    $(error OpenMP is not supported by MAESTROeX when building with GPU support)
+  endif
+endif
 
 MAESTROEX_AUTO_SOURCE_DIR := $(TmpBuildDir)/maestroex_sources/$(optionsSuffix).EXE
 
@@ -60,9 +71,6 @@ all: $(executable)
 
 # Maestro uses a coarse grained OMP approach
 DEFINES += -DCRSEGRNDOMP
-
-# Maestro needs to compute additional thermodynamic derivatives in the EOS
-DEFINES += -DEXTRA_THERMO
 
 USE_MG = FALSE
 
@@ -75,8 +83,6 @@ endif
 #------------------------------------------------------------------------------
 
 Bdirs 	:= Source \
-           Source/Src_nd \
-           constants \
            Util/model_parser \
            Util/simple_log \
            Util/utils
@@ -124,18 +130,15 @@ USE_CXX_REACTIONS := TRUE
 
 ifeq ($(USE_REACT), TRUE)
   DEFINES += -DREACTIONS
-  ifeq ($(USE_SDC), TRUE)
-    # we need the compositional derivatives for SDC
-    DEFINES += -DEXTRA_THERMO
-   endif
 endif
-      
+
 # Maestro SDC uses the SDC_EVOLVE_ENTHALPY mode in StarKiller Microphysics
 ifeq ($(USE_SDC), TRUE)
   USE_SIMPLIFIED_SDC = TRUE
   DEFINES += -DSDC -DPRIM_SPECIES_HAVE_SOURCES -DSDC_EVOLVE_ENTHALPY
 endif
-      
+
+
 include $(MICROPHYSICS_HOME)/Make.Microphysics_extern
 
 Bpack += $(foreach dir, $(EXTERN_CORE), $(dir)/Make.package)
@@ -172,38 +175,31 @@ INCLUDE_LOCATIONS += $(MAESTROEX_AUTO_SOURCE_DIR)
 #------------------------------------------------------------------------------
 
 # runtime parameter support for extern/ routines
-F90EXE_sources += extern.F90
 CEXE_sources += extern_parameters.cpp
-FEXE_headers += extern_parameters_F.H
 CEXE_headers += extern_parameters.H
 
+# for dependency resolution
+AUTO_BUILD_SOURCES += $(MAESTROEX_AUTO_SOURCE_DIR)/extern_parameters.H
+
 # these are for finding runtime parameters
-EXTERN_SEARCH += $(EXTERN_CORE) $(TOP)/constants $(TOP)/Util/model_parser
+EXTERN_SEARCH += $(EXTERN_CORE) $(TOP)/Util/model_parser
 ifdef MICROPHYSICS_HOME
    EXTERN_SEARCH += $(MICROPHYSICS_HOME)/networks/
 endif
 EXTERN_PARAMETERS := $(foreach dir, $(EXTERN_SEARCH),$(realpath $(wildcard $(dir)/_parameters)))
 
-PROBIN_TEMPLATE := $(MAESTROEX_HOME)/Source/param/runtime.probin.template
 PROBIN_PARAMETER_DIRS += .
 PROBIN_PARAMETERS := $(foreach dir, $(PROBIN_PARAMETER_DIRS),$(realpath $(wildcard $(dir)/_parameters)))
 
-ifdef USE_CUDA
-  ifeq ($(USE_CUDA), TRUE)
-    USE_GPU_PRAGMA = TRUE
-    DEFINES += -DCUDA
-  endif
-endif
+$(MAESTROEX_AUTO_SOURCE_DIR)/extern_parameters.cpp: $(MAESTROEX_AUTO_SOURCE_DIR)/extern_parameters.H
 
-$(MAESTROEX_AUTO_SOURCE_DIR)/extern_parameters.cpp: $(MAESTROEX_AUTO_SOURCE_DIR)/extern.F90
-
-$(MAESTROEX_AUTO_SOURCE_DIR)/extern.F90: $(PROBIN_PARAMETERS) $(PROBIN_TEMPLATE)
+$(MAESTROEX_AUTO_SOURCE_DIR)/extern_parameters.H: $(PROBIN_PARAMETERS)
 	@if [ ! -d $(MAESTROEX_AUTO_SOURCE_DIR) ]; then mkdir -p $(MAESTROEX_AUTO_SOURCE_DIR); fi
 	@echo " "
-	@echo "${bold}WRITING extern.F90${normal}"
+	@echo "${bold}WRITING extern_parameters.cpp${normal}"
 	$(MICROPHYSICS_HOME)/util/build_scripts/write_probin.py \
-          -t $(PROBIN_TEMPLATE) -o $(MAESTROEX_AUTO_SOURCE_DIR)/extern.F90 -n probin \
           --pa "$(PROBIN_PARAMETERS) $(EXTERN_PARAMETERS)" \
+          --use_namespace \
           --cxx_prefix $(MAESTROEX_AUTO_SOURCE_DIR)/extern
 	@echo " "
 
@@ -211,31 +207,34 @@ $(MAESTROEX_AUTO_SOURCE_DIR)/extern.F90: $(PROBIN_PARAMETERS) $(PROBIN_TEMPLATE)
 # MAESTROeX C++ parameters
 #------------------------------------------------------------------------------
 
-CPP_PARAMETERS := $(TOP)/Source/param/_cpp_parameters
-METH_PARAMS_TEMPLATE := $(TOP)/Source/param/meth_params.template
+AUTO_BUILD_SOURCES += $(MAESTROEX_AUTO_SOURCE_DIR)/maestro_params.H
 
-$(MAESTROEX_AUTO_SOURCE_DIR)/meth_params.F90: $(CPP_PARAMETERS) $(METH_PARAMS_TEMPLATE)
+CPP_PARAMETERS := $(TOP)/Source/param/_cpp_parameters
+
+$(MAESTROEX_AUTO_SOURCE_DIR)/runtime_params.cpp: $(MAESTROEX_AUTO_SOURCE_DIR)/maestro_params.H
+
+$(MAESTROEX_AUTO_SOURCE_DIR)/maestro_params.H: $(CPP_PARAMETERS)
 	@if [ ! -d $(MAESTROEX_AUTO_SOURCE_DIR) ]; then mkdir -p $(MAESTROEX_AUTO_SOURCE_DIR); fi
-	PYTHONPATH=$(MICROPHYSICS_HOME)/util/build_scripts $(TOP)/Source/param/parse_maestro_params.py -m $(METH_PARAMS_TEMPLATE) -o $(MAESTROEX_AUTO_SOURCE_DIR) $(CPP_PARAMETERS)
+	PYTHONPATH=$(MICROPHYSICS_HOME)/util/build_scripts $(TOP)/Source/param/parse_maestro_params.py -o $(MAESTROEX_AUTO_SOURCE_DIR) $(CPP_PARAMETERS)
 
 # for debugging
-test_cxx_params: $(MAESTROEX_AUTO_SOURCE_DIR)/meth_params.F90
+test_cxx_params: $(MAESTROEX_AUTO_SOURCE_DIR)/maestro_params.H
 
 #------------------------------------------------------------------------------
 # state variable info
 #-------------------------------------------------------------------------------
 
-$(MAESTROEX_AUTO_SOURCE_DIR)/state_indices.H: $(MAESTROEX_AUTO_SOURCE_DIR)/state_indices_nd.F90
-	echo "state_indices.H will be generated at the same time as state_indices_nd.F90"
+# for dependency resolution
+AUTO_BUILD_SOURCES += $(MAESTROEX_AUTO_SOURCE_DIR)/state_indices.H
 
-$(MAESTROEX_AUTO_SOURCE_DIR)/state_indices_nd.F90:
+$(MAESTROEX_AUTO_SOURCE_DIR)/state_indices.H:
 	$(MAESTROEX_HOME)/Source/param/set_variables.py \
            --defines "$(DEFINES)" \
            --odir $(MAESTROEX_AUTO_SOURCE_DIR) \
            $(MAESTROEX_HOME)/Source/param/_variables
 
 # for debugging
-test_variables: $(MAESTROEX_AUTO_SOURCE_DIR)/state_indices_nd.F90
+test_variables: $(MAESTROEX_AUTO_SOURCE_DIR)/state_indices.H
 
 
 #------------------------------------------------------------------------------
@@ -268,6 +267,7 @@ ifdef BUILD_GIT_NAME
 endif
 
 $(objEXETempDir)/AMReX_buildInfo.o: .FORCE
+	@if [ ! -d $(objEXETempDir) ]; then mkdir -p $(objEXETempDir); fi
 	$(AMREX_HOME)/Tools/C_scripts/makebuildinfo_C.py \
           --amrex_home "$(AMREX_HOME)" \
           --COMP "$(COMP)" --COMP_VERSION "$(COMP_VERSION)" \
@@ -289,15 +289,13 @@ include $(AMREX_HOME)/Tools/GNUMake/Make.rules
 ifeq ($(USE_CUDA),TRUE)
 ifeq ($(USE_GPU_PRAGMA), TRUE)
 
-include $(TOP)/Exec/Make.cuda_rules
-
 endif
 endif
 
 clean::
-	$(SILENT) $(RM) extern.F90 extern.f90 extern_parameters.cpp extern_parameters_F.H extern_parameters.H
+	$(SILENT) $(RM) extern.F90 extern.f90 extern_parameters.cpp extern_parameters.H
 	$(SILENT) $(RM) AMReX_buildInfo.cpp
-	$(SILENT) $(RM) $(MAESTROEX_AUTO_SOURCE_DIR)/*.H $(MAESTROEX_AUTO_SOURCE_DIR)/*.[fF]90
+	$(SILENT) $(RM) $(MAESTROEX_AUTO_SOURCE_DIR)/*.H $(MAESTROEX_AUTO_SOURCE_DIR)/*.[fF]90 $(MAESTROEX_AUTO_SOURCE_DIR)/*.cpp
 
 clean::
 	@if [ -L helm_table.dat ]; then rm -f helm_table.dat; fi

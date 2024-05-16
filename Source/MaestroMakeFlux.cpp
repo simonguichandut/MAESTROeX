@@ -21,13 +21,12 @@ void Maestro::MakeRhoXFlux(
     Vector<MultiFab>& etarhoflux,
     Vector<std::array<MultiFab, AMREX_SPACEDIM> >& sedge,
     const Vector<std::array<MultiFab, AMREX_SPACEDIM> >& umac,
-    const Vector<std::array<MultiFab, AMREX_SPACEDIM> >& w0mac,
     const BaseState<Real>& rho0_old_in,
     const BaseState<Real>& rho0_edge_old_state,
-    const Vector<std::array<MultiFab, AMREX_SPACEDIM> >& r0mac_old,
+    [[maybe_unused]] const Vector<std::array<MultiFab, AMREX_SPACEDIM> >& r0mac_old,
     const BaseState<Real>& rho0_new_in,
     const BaseState<Real>& rho0_edge_new_state,
-    const Vector<std::array<MultiFab, AMREX_SPACEDIM> >& r0mac_new,
+    [[maybe_unused]] const Vector<std::array<MultiFab, AMREX_SPACEDIM> >& r0mac_new,
     const BaseState<Real>& rho0_predicted_edge_state, int start_comp,
     int num_comp) {
     // timer for profiling
@@ -50,6 +49,7 @@ void Maestro::MakeRhoXFlux(
             sflux[lev][i].setVal(0., Rho, 1, 0);
         }
     }
+
 
     for (int lev = 0; lev <= finest_level; ++lev) {
 #if (AMREX_SPACEDIM == 3)
@@ -83,18 +83,23 @@ void Maestro::MakeRhoXFlux(
             const Box& zbx = mfi.nodaltilebox(2);
 #endif
 
+            // note: it is assumed here that umac includes the base state velocity, w0
+
             const Array4<Real> sedgex = sedge[lev][0].array(mfi);
             const Array4<Real> sfluxx = sflux[lev][0].array(mfi);
-            const Array4<Real> etarhoflux_arr = etarhoflux[lev].array(mfi);
             const Array4<const Real> umacx = umac[lev][0].array(mfi);
+
             const Array4<Real> sedgey = sedge[lev][1].array(mfi);
             const Array4<Real> sfluxy = sflux[lev][1].array(mfi);
             const Array4<const Real> vmac = umac[lev][1].array(mfi);
+
 #if (AMREX_SPACEDIM == 3)
             const Array4<Real> sedgez = sedge[lev][2].array(mfi);
             const Array4<Real> sfluxz = sflux[lev][2].array(mfi);
             const Array4<const Real> wmac = umac[lev][2].array(mfi);
 #endif
+
+            const Array4<Real> etarhoflux_arr = etarhoflux[lev].array(mfi);
 
             const auto w0_arr = w0.const_array();
 
@@ -302,6 +307,7 @@ void Maestro::MakeRhoXFlux(
             } else {
                 // spherical case
 
+                // note: these edge states are already time-centered
                 const Array4<const Real> rho0_edgex = rho0mac_edgex.array(mfi);
                 const Array4<const Real> rho0_edgey = rho0mac_edgey.array(mfi);
                 const Array4<const Real> rho0_edgez = rho0mac_edgez.array(mfi);
@@ -474,6 +480,15 @@ void Maestro::MakeRhoHFlux(
     const Vector<std::array<MultiFab, AMREX_SPACEDIM> >& rh0mac_new,
     const Vector<std::array<MultiFab, AMREX_SPACEDIM> >& h0mac_old,
     const Vector<std::array<MultiFab, AMREX_SPACEDIM> >& h0mac_new) {
+
+    amrex::ignore_unused(w0mac);
+    amrex::ignore_unused(r0mac_old);
+    amrex::ignore_unused(r0mac_new);
+    amrex::ignore_unused(rh0mac_old);
+    amrex::ignore_unused(rh0mac_new);
+    amrex::ignore_unused(h0mac_old);
+    amrex::ignore_unused(h0mac_new);
+
     // timer for profiling
     BL_PROFILE_VAR("Maestro::MakeRhoHFlux()", MakeRhoHFlux);
 

@@ -1,7 +1,6 @@
 
 #include <AMReX_VisMF.H>
 #include <Maestro.H>
-#include <Maestro_F.H>
 
 using namespace amrex;
 
@@ -283,7 +282,7 @@ void Maestro::MultFacesByBeta0(
                 ParallelFor(xbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 #if (AMREX_SPACEDIM == 2)
                     int r = j;
-#else 
+#else
                     int r = k;
 #endif
                     uedge(i, j, k) *= beta0(lev, r);
@@ -292,7 +291,7 @@ void Maestro::MultFacesByBeta0(
                 ParallelFor(ybx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 #if (AMREX_SPACEDIM == 2)
                     vedge(i, j, k) *= beta0_edge(lev, j);
-#else 
+#else
                     vedge(i,j,k) *= beta0(lev,k);
 #endif
                 });
@@ -306,7 +305,7 @@ void Maestro::MultFacesByBeta0(
                 ParallelFor(xbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 #if (AMREX_SPACEDIM == 2)
                     int r = j;
-#else 
+#else
                     int r = k;
 #endif
                     uedge(i, j, k) /= beta0(lev, r);
@@ -315,7 +314,7 @@ void Maestro::MultFacesByBeta0(
                 ParallelFor(ybx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 #if (AMREX_SPACEDIM == 2)
                     vedge(i, j, k) /= beta0_edge(lev, j);
-#else 
+#else
                     vedge(i,j,k) /= beta0(lev,k);
 #endif
                 });
@@ -435,14 +434,14 @@ void Maestro::SetMacSolverBCs(MLABecLaplacian& mlabec) {
             mlmg_lobc[idim] = mlmg_hibc[idim] = LinOpBCType::Periodic;
         } else {
             // lo-side BCs
-            if (phys_bc[idim] == Outflow) {
+            if (phys_bc[idim] == amrex::PhysBCType::outflow) {
                 mlmg_lobc[idim] = LinOpBCType::Dirichlet;
             } else {
                 mlmg_lobc[idim] = LinOpBCType::Neumann;
             }
 
             // hi-side BCs
-            if (phys_bc[AMREX_SPACEDIM + idim] == Outflow) {
+            if (phys_bc[AMREX_SPACEDIM + idim] == amrex::PhysBCType::outflow) {
                 mlmg_hibc[idim] = LinOpBCType::Dirichlet;
             } else {
                 mlmg_hibc[idim] = LinOpBCType::Neumann;

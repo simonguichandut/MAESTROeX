@@ -1,3 +1,5 @@
+@namespace: problem
+
 # For a simple laminar flame setup we define the fuel and ash state.  The
 # fuel parameters will be used to define the inflow boundary condition.
 # the fuel and ash will be in pressure equilibrium, so the ash density
@@ -22,7 +24,7 @@ smooth_len_frac         real                 0.025
 XC12_ref_threshold      real                 1.d-3
 
 # do the burning only once for each vertical coordinate
-do_average_burn         logical              .false.
+do_average_burn         integer              0
 
 # acceptable relative error for a cell compared to the average
 # at that vertical coord if do_average_burn = T (should be smaller

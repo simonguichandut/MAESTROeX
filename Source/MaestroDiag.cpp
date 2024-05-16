@@ -1,7 +1,6 @@
 
 #include <AMReX_buildInfo.H>
 #include <Maestro.H>
-#include <Maestro_F.H>
 
 using namespace amrex;
 
@@ -25,17 +24,12 @@ void Maestro::DiagFile(const int step, const Real t_in,
     // -- w0mac will contain an edge-centered w0 on a Cartesian grid,
     // -- for use in computing divergences.
     Vector<std::array<MultiFab, AMREX_SPACEDIM> > w0mac(finest_level + 1);
-    // -- w0r_cart is w0 but onto a Cartesian grid in cell-centered as
-    // -- a scalar.  Since w0 is the radial expansion velocity, w0r_cart
-    // -- is the radial w0 in a zone
-    Vector<MultiFab> w0r_cart(finest_level + 1);
 
     // rho_Hnuc and rho_Hext are used to determine energy generation
     Vector<MultiFab> stemp(finest_level + 1);
     Vector<MultiFab> rho_Hext(finest_level + 1);
     Vector<MultiFab> rho_omegadot(finest_level + 1);
     Vector<MultiFab> rho_Hnuc(finest_level + 1);
-    Vector<MultiFab> sdc_source(finest_level + 1);
 
 #if (AMREX_SPACEDIM == 3)
     if (spherical) {
@@ -52,16 +46,11 @@ void Maestro::DiagFile(const int step, const Real t_in,
                 w0mac[lev][idim].setVal(0.);
             }
 
-            w0r_cart[lev].define(grids[lev], dmap[lev], 1, 0);
-            w0r_cart[lev].setVal(0.);
         }
 
         // put w0 on Cartesian edges as a vector
         MakeW0mac(w0mac);
 
-        // put w0 in Cartesian cell-centers as a scalar (the radial
-        // expansion velocity)
-        Put1dArrayOnCart(w0, w0r_cart, true, false, bcs_u, 0, 1);
     }
 #endif
 
@@ -71,28 +60,13 @@ void Maestro::DiagFile(const int step, const Real t_in,
         rho_Hext[lev].define(grids[lev], dmap[lev], 1, 0);
         rho_omegadot[lev].define(grids[lev], dmap[lev], NumSpec, 0);
         rho_Hnuc[lev].define(grids[lev], dmap[lev], 1, 0);
-        sdc_source[lev].define(grids[lev], dmap[lev], Nscal, 0);
-
-        sdc_source[lev].setVal(0.0);
     }
 
-#ifndef SDC
     if (dt < small_dt) {
-        React(s_in, stemp, rho_Hext, rho_omegadot, rho_Hnuc, p0_in, small_dt,
-              t_in);
+        React(s_in, stemp, rho_Hext, rho_omegadot, rho_Hnuc, p0_in, small_dt, t_in);  // NOLINT(readability-suspicious-call-argument)
     } else {
-        React(s_in, stemp, rho_Hext, rho_omegadot, rho_Hnuc, p0_in, dt * 0.5,
-              t_in);
+        React(s_in, stemp, rho_Hext, rho_omegadot, rho_Hnuc, p0_in, dt * 0.5, t_in);
     }
-#else
-    if (dt < small_dt) {
-        ReactSDC(s_in, stemp, rho_Hext, p0_in, small_dt, t_in, sdc_source);
-    } else {
-        ReactSDC(s_in, stemp, rho_Hext, p0_in, dt * 0.5, t_in, sdc_source);
-    }
-
-    MakeReactionRates(rho_omegadot, rho_Hnuc, s_in);
-#endif
 
     // initialize diagnosis variables
     // diag_temp.out
@@ -170,7 +144,7 @@ void Maestro::DiagFile(const int step, const Real t_in,
             // weight is the factor by which the volume of a cell at the current level
             // relates to the volume of a cell at the coarsest level of refinement.
             const auto weight =
-                AMREX_SPACEDIM == 2 ? 1.0 / pow(4.0, lev) : 1.0 / pow(8.0, lev);
+                AMREX_SPACEDIM == 2 ? 1.0 / std::pow(4.0, lev) : 1.0 / std::pow(8.0, lev);
 
 #if (AMREX_SPACEDIM == 3)
             // for non-spherical we have to set these to be a valid array as
@@ -181,10 +155,6 @@ void Maestro::DiagFile(const int step, const Real t_in,
                 spherical ? w0mac[lev][1].array(mfi) : rho_Hnuc[lev].array(mfi);
             const Array4<const Real> w0macz =
                 spherical ? w0mac[lev][2].array(mfi) : rho_Hnuc[lev].array(mfi);
-            const Array4<const Real> normal_arr =
-                spherical ? normal[lev].array(mfi) : rho_Hnuc[lev].array(mfi);
-            const Array4<const Real> w0r =
-                spherical ? w0r_cart[lev].array(mfi) : rho_Hnuc[lev].array(mfi);
 #endif
 
             // The locations of the maxima here make trying to do this on the
@@ -201,7 +171,9 @@ void Maestro::DiagFile(const int step, const Real t_in,
                         // make sure the cell isn't covered by finer cells
                         bool cell_valid = true;
                         if (use_mask) {
-                            if (mask_arr(i, j, k) == 1) cell_valid = false;
+                            if (mask_arr(i, j, k) == 1) {
+                                cell_valid = false;
+                            }
                         }
 
                         // For spherical, we only consider cells inside of where the
@@ -237,8 +209,8 @@ void Maestro::DiagFile(const int step, const Real t_in,
 
                                 // velr is the projection of the velocity (including w0) onto
                                 // the radial unit vector
-                                // Real velr = u(i,j,k,0)*normal_arr(i,j,k,0) + \
-                        //     u(i,j,k,1)*normal_arr(i,j,k,1) + \
+                                // Real velr = u(i,j,k,0)*normal_arr(i,j,k,0) + \ //
+                        //     u(i,j,k,1)*normal_arr(i,j,k,1) + \ //
                         //     u(i,j,k,2)*normal_arr(i,j,k,2) + w0r(i,j,k);
 
                                 // vel is the magnitude of the velocity, including w0
@@ -420,7 +392,7 @@ void Maestro::DiagFile(const int step, const Real t_in,
 
         // for T_max, we want to know where the hot spot is, so we do a
         // gather on the temperature and find the index corresponding to
-        // the maxiumum.  We then pack the coordinates and velocities
+        // the maximum.  We then pack the coordinates and velocities
         // into a local array and gather that to the I/O processor and
         // pick the values corresponding to the maximum.
         int nprocs = ParallelDescriptor::NProcs();
@@ -430,7 +402,7 @@ void Maestro::DiagFile(const int step, const Real t_in,
         if (nprocs == 1) {
             T_max_data[0] = T_max_local;
         } else {
-            ParallelDescriptor::Gather(&T_max_local, 1, &T_max_data[0], 1,
+            ParallelDescriptor::Gather(&T_max_local, 1, T_max_data.data(), 1,
                                        ioproc);
         }
 
@@ -460,8 +432,8 @@ void Maestro::DiagFile(const int step, const Real t_in,
                 T_max_coords_level[i] = T_max_coords[i];
             }
         } else {
-            ParallelDescriptor::Gather(&T_max_coords[0], 2 * AMREX_SPACEDIM,
-                                       &T_max_coords_level[0],
+            ParallelDescriptor::Gather(T_max_coords.data(), 2 * AMREX_SPACEDIM,
+                                       T_max_coords_level.data(),
                                        2 * AMREX_SPACEDIM, ioproc);
         }
 
@@ -484,7 +456,7 @@ void Maestro::DiagFile(const int step, const Real t_in,
         if (nprocs == 1) {
             enuc_max_data[0] = enuc_max_local;
         } else {
-            ParallelDescriptor::Gather(&enuc_max_local, 1, &enuc_max_data[0], 1,
+            ParallelDescriptor::Gather(&enuc_max_local, 1, enuc_max_data.data(), 1,
                                        ioproc);
         }
 
@@ -510,8 +482,8 @@ void Maestro::DiagFile(const int step, const Real t_in,
                 enuc_max_coords_level[i] = enuc_max_coords[i];
             }
         } else {
-            ParallelDescriptor::Gather(&enuc_max_coords[0], 2 * AMREX_SPACEDIM,
-                                       &enuc_max_coords_level[0],
+            ParallelDescriptor::Gather(enuc_max_coords.data(), 2 * AMREX_SPACEDIM,
+                                       enuc_max_coords_level.data(),
                                        2 * AMREX_SPACEDIM, ioproc);
         }
 

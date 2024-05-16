@@ -1,6 +1,5 @@
 
 #include <Maestro.H>
-#include <Maestro_F.H>
 
 using namespace amrex;
 
@@ -54,7 +53,7 @@ void Maestro::Average(const Vector<MultiFab>& phi, BaseState<Real>& phibar,
 
                 const Array4<const Real> phi_arr = phi[lev].array(mfi, comp);
 
-#ifdef AMREX_USE_CUDA
+#ifdef AMREX_USE_GPU
                 // Atomic::Add is non-deterministic on the GPU. If this flag is true,
                 // run on the CPU instead
                 bool launched;
@@ -71,7 +70,7 @@ void Maestro::Average(const Vector<MultiFab>& phi, BaseState<Real>& phibar,
                                                    phi_arr(i, j, k));
                 });
 
-#ifdef AMREX_USE_CUDA
+#ifdef AMREX_USE_GPU
                 if (deterministic_nodal_solve) {
                     // turn GPU back on
                     if (launched) Gpu::setLaunchRegion(true);
@@ -232,7 +231,7 @@ void Maestro::Average(const Vector<MultiFab>& phi, BaseState<Real>& phibar,
 
                 bool use_mask = !(lev == fine_lev - 1);
 
-#ifdef AMREX_USE_CUDA
+#ifdef AMREX_USE_GPU
                 // Atomic::Add is non-deterministic on the GPU. If this flag is true,
                 // run on the CPU instead
                 bool launched;
@@ -251,12 +250,14 @@ void Maestro::Average(const Vector<MultiFab>& phi, BaseState<Real>& phibar,
                     // make sure the cell isn't covered by finer cells
                     bool cell_valid = true;
                     if (use_mask) {
-                        if (mask_arr(i, j, k) == 1) cell_valid = false;
+                        if (mask_arr(i, j, k) == 1) {
+                            cell_valid = false;
+                        }
                     }
 
                     if (cell_valid) {
                         // compute distance to center
-                        Real radius = sqrt(x * x + y * y + z * z);
+                        Real radius = std::sqrt(x * x + y * y + z * z);
 
                         // figure out which radii index this point maps into
                         auto index = (int)amrex::Math::round(
@@ -279,7 +280,7 @@ void Maestro::Average(const Vector<MultiFab>& phi, BaseState<Real>& phibar,
                     }
                 });
 
-#ifdef AMREX_USE_CUDA
+#ifdef AMREX_USE_GPU
                 if (deterministic_nodal_solve) {
                     // turn GPU back on
                     if (launched) Gpu::setLaunchRegion(true);
@@ -443,7 +444,7 @@ void Maestro::Average(const Vector<MultiFab>& phi, BaseState<Real>& phibar,
                 amrex::min(stencil_coord, max_rcoord(which_lev(r)) - 1);
 
             bool limit =
-                (r <= nrf - 1 - drdxfac_loc * pow(2.0, (fine_lev - 2)));
+                (r <= nrf - 1 - drdxfac_loc * std::pow(2.0, (fine_lev - 2)));
 
             phibar_arr(0, r) =
                 QuadInterp(radius, radii(which_lev(r), stencil_coord),

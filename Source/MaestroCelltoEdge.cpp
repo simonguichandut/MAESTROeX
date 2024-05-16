@@ -1,10 +1,9 @@
 #include <Maestro.H>
-#include <Maestro_F.H>
 
 using namespace amrex;
 
 void Maestro::CelltoEdge(const BaseState<Real>& s0_cell_s,
-                         BaseState<Real>& s0_edge_s) {
+                         BaseState<Real>& s0_edge_s) const {
     // timer for profiling
     BL_PROFILE_VAR("Maestro::CelltoEdge()", CelltoEdge);
 

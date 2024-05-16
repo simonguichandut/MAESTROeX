@@ -1,7 +1,8 @@
 #include <Maestro.H>
-#include <Maestro_F.H>
+#include <extern_parameters.H>
 
 using namespace amrex;
+using namespace problem_rp;
 
 void Maestro::InitBaseState(BaseState<Real>& rho0_s, BaseState<Real>& rhoh0_s,
                             BaseState<Real>& p0_s, const int lev) {
@@ -40,7 +41,7 @@ void Maestro::InitBaseState(BaseState<Real>& rho0_s, BaseState<Real>& rhoh0_s,
 
     eos(eos_input_rh, eos_state);
 
-    Real diffusion_coefficient =
+    diffusion_coefficient =
         const_conductivity / (eos_state.cp * ambient_dens);
 
     for (auto r = 0; r < base_geom.nr(n); ++r) {

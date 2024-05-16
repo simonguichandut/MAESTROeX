@@ -3,7 +3,6 @@ CEXE_sources += BaseStateGeometry.cpp
 CEXE_sources += Maestro.cpp
 CEXE_sources += MaestroAdvance.cpp
 CEXE_sources += MaestroAdvanceAvg.cpp
-CEXE_sources += MaestroAdvanceSdc.cpp
 CEXE_sources += MaestroAdvectBase.cpp
 CEXE_sources += MaestroAdvection.cpp
 CEXE_sources += MaestroAverage.cpp
@@ -57,19 +56,13 @@ CEXE_sources += MaestroVelPred.cpp
 ifeq ($(USE_ROTATION), TRUE)
     CEXE_sources += MaestroRotation.cpp
 endif
-CEXE_sources += runparams_defaults.cpp
+CEXE_sources += runtime_params.cpp
 
 CEXE_headers += BaseState.H
 CEXE_headers += BaseStateGeometry.H
 CEXE_headers += Maestro.H
-CEXE_headers += MaestroBCThreads.H
 CEXE_headers += MaestroInletBCs.H
 CEXE_headers += MaestroPlot.H
 CEXE_headers += MaestroUtil.H
 CEXE_headers += PhysBCFunctMaestro.H
 CEXE_headers += state_indices.H
-
-F90EXE_sources += meth_params.F90
-F90EXE_sources += state_indices_nd.F90
-
-FEXE_headers += Maestro_F.H
