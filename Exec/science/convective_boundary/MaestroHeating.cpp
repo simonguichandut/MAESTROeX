@@ -25,7 +25,7 @@ void Maestro::MakeHeating(Vector<MultiFab>& rho_Hext,
             const Array4<const Real> scal_arr = scal[lev].array(mfi);
             const Array4<Real> rho_Hext_arr = rho_Hext[lev].array(mfi);
 
-            const auto heat_flux_loc = constant_heat_flux;
+            // const auto heat_flux_loc = constant_heat_flux;
 
             ParallelFor(tileBox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 // Real r = (AMREX_SPACEDIM == 2) ? j : k;
@@ -54,7 +54,7 @@ void Maestro::MakeHeating(Vector<MultiFab>& rho_Hext,
                         +
                         .01250 * std::sin((8.0 * M_PI * x / L_x) + M_PI / 5.0)
                             ) *
-                    constant_heat_flux;
+                    problem_rp::constant_heat_flux;
             });
         }
     }

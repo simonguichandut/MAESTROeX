@@ -1,5 +1,4 @@
 #include <Maestro.H>
-#include <Maestro_F.H>
 
 using namespace amrex;
 
@@ -19,8 +18,16 @@ void Maestro::InitBaseState(BaseState<Real>& rho0, BaseState<Real>& rhoh0,
     auto tempbar_init_arr = tempbar_init.array();
     auto s0_init_arr = s0_init.array();
 
-    const auto iH = network_spec_index("helium");
-    const auto iH20 = network_spec_index("H20");
+    const auto iH = network_spec_index("H2");
+    const auto iH2O = network_spec_index("H2O");
+
+    const auto g0    = problem_rp::g0;
+    const auto rho_t = problem_rp::rho_t;
+    const auto T_0   = problem_rp::T_0;
+    const auto k_B   = problem_rp::k_B;
+    const auto m_p   = problem_rp::m_p;
+    const auto X_b   = problem_rp::X_b;
+    const auto N_rho = problem_rp::N_rho;
 
     const auto alpha = -N_rho / (std::log(9.0_rt / (9.0_rt - 8.0_rt * X_b)));
     const auto rho_b = rho_t * std::exp(N_rho);
@@ -53,7 +60,7 @@ void Maestro::InitBaseState(BaseState<Real>& rho0, BaseState<Real>& rhoh0,
         for (auto comp = 0; comp < NumSpec; ++comp) {
             eos_state.xn[comp] = 0.0_rt;
         }
-        eos_state.xn[iH20] = X0;
+        eos_state.xn[iH2O] = X0;
         eos_state.xn[iH] = 1.0_rt - X0;
 
         eos(eos_input_rp, eos_state);
