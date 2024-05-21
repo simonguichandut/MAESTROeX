@@ -1,6 +1,8 @@
-
 # INITIAL MODEL
 # maestro.model_file = ""
+
+# gaussian perturbation to temperature, see MaestroInitData
+maestro.perturb_model = true
 
 # PROBLEM SIZE
 geometry.prob_lo     =  0.0    0.0

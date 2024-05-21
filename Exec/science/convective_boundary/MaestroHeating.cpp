@@ -25,8 +25,6 @@ void Maestro::MakeHeating(Vector<MultiFab>& rho_Hext,
             const Array4<const Real> scal_arr = scal[lev].array(mfi);
             const Array4<Real> rho_Hext_arr = rho_Hext[lev].array(mfi);
 
-            // const auto heat_flux_loc = constant_heat_flux;
-
             ParallelFor(tileBox, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 // Real r = (AMREX_SPACEDIM == 2) ? j : k;
                 // Real z = prob_lo[AMREX_SPACEDIM - 1] +
@@ -38,23 +36,18 @@ void Maestro::MakeHeating(Vector<MultiFab>& rho_Hext,
                 //     rho_Hext_arr(i, j, k) = scal_arr(i, j, k, Rho) * heat_flux_loc;
                 // }
 
-                const Real L_x = prob_hi[0];
+                if (problem_rp::do_cooling) {
 
-                Real x = (Real(i) + 0.5) * dx[0] + prob_lo[0];
-                Real y = (Real(j) + 0.5) * dx[1] + prob_lo[1];
+                    const Real L_x = prob_hi[0];
+    
+                    Real x = (Real(i) + 0.5) * dx[0] + prob_lo[0];
+                    Real y = (Real(j) + 0.5) * dx[1] + prob_lo[1];
+    
+                    // Exponential decay from the top boundary
+                    Real er = std::exp(-(prob_hi[1] - y) * (prob_hi[1] - y) / 1.e11);
+                    rho_Hext_arr(i, j, k) = er * problem_rp::constant_heat_flux;
+                }
 
-                Real er = std::exp(-(prob_hi[1] - y) * (prob_hi[1] - y) / 1.e11);
-
-                rho_Hext_arr(i, j, k) =
-                    er *
-                    (1.0 +
-                        .00625 * std::sin(2.0 * M_PI * x / L_x)
-                        +
-                        .01875 * std::sin((6.0 * M_PI * x / L_x) + M_PI / 3.0)
-                        +
-                        .01250 * std::sin((8.0 * M_PI * x / L_x) + M_PI / 5.0)
-                            ) *
-                    problem_rp::constant_heat_flux;
             });
         }
     }
